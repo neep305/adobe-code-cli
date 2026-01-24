@@ -1,0 +1,142 @@
+[
+  {
+    "customer_id": "CUST001",
+    "email": "john.doe@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+1-555-0123",
+    "date_of_birth": "1985-03-15",
+    "gender": "male",
+    "address": {
+      "street": "123 Main Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94102",
+      "country": "US"
+    },
+    "account_created": "2023-01-15T10:30:00Z",
+    "account_status": "active",
+    "customer_tier": "gold",
+    "total_orders": 15,
+    "lifetime_value": 2450.75,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": false,
+      "push_notifications": true
+    },
+    "loyalty_points": 3250,
+    "last_purchase_date": "2024-11-20T14:22:00Z"
+  },
+  {
+    "customer_id": "CUST002",
+    "email": "jane.smith@example.com",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "phone": "+1-555-0124",
+    "date_of_birth": "1990-07-22",
+    "gender": "female",
+    "address": {
+      "street": "456 Oak Avenue",
+      "city": "Los Angeles",
+      "state": "CA",
+      "postal_code": "90001",
+      "country": "US"
+    },
+    "account_created": "2023-06-10T09:15:00Z",
+    "account_status": "active",
+    "customer_tier": "silver",
+    "total_orders": 8,
+    "lifetime_value": 980.50,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": false
+    },
+    "loyalty_points": 1850,
+    "last_purchase_date": "2024-12-05T11:45:00Z"
+  },
+  {
+    "customer_id": "CUST003",
+    "email": "michael.chen@example.com",
+    "first_name": "Michael",
+    "last_name": "Chen",
+    "phone": "+1-555-0125",
+    "date_of_birth": "1988-11-08",
+    "gender": "male",
+    "address": {
+      "street": "789 Pine Street",
+      "city": "Seattle",
+      "state": "WA",
+      "postal_code": "98101",
+      "country": "US"
+    },
+    "account_created": "2022-03-20T16:45:00Z",
+    "account_status": "active",
+    "customer_tier": "platinum",
+    "total_orders": 32,
+    "lifetime_value": 5680.25,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": true
+    },
+    "loyalty_points": 8920,
+    "last_purchase_date": "2025-01-10T09:30:00Z"
+  },
+  {
+    "customer_id": "CUST004",
+    "email": "sarah.wilson@example.com",
+    "first_name": "Sarah",
+    "last_name": "Wilson",
+    "phone": "+1-555-0126",
+    "date_of_birth": "1995-05-12",
+    "gender": "female",
+    "address": {
+      "street": "321 Elm Road",
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "US"
+    },
+    "account_created": "2024-02-14T12:00:00Z",
+    "account_status": "active",
+    "customer_tier": "bronze",
+    "total_orders": 3,
+    "lifetime_value": 425.00,
+    "marketing_preferences": {
+      "email_opt_in": false,
+      "sms_opt_in": false,
+      "push_notifications": true
+    },
+    "loyalty_points": 520,
+    "last_purchase_date": "2024-10-25T18:10:00Z"
+  },
+  {
+    "customer_id": "CUST005",
+    "email": "david.martinez@example.com",
+    "first_name": "David",
+    "last_name": "Martinez",
+    "phone": "+1-555-0127",
+    "date_of_birth": "1982-09-30",
+    "gender": "male",
+    "address": {
+      "street": "555 Maple Drive",
+      "city": "Miami",
+      "state": "FL",
+      "postal_code": "33101",
+      "country": "US"
+    },
+    "account_created": "2021-11-05T08:20:00Z",
+    "account_status": "active",
+    "customer_tier": "gold",
+    "total_orders": 21,
+    "lifetime_value": 3890.40,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": false
+    },
+    "loyalty_points": 5230,
+    "last_purchase_date": "2025-01-08T15:55:00Z"
+  }
+]

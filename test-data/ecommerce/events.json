@@ -1,0 +1,192 @@
+[
+  {
+    "event_id": "EVT001",
+    "event_type": "page_view",
+    "timestamp": "2025-01-20T10:15:30Z",
+    "customer_id": "CUST001",
+    "session_id": "SES_20250120_001",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "ip_address": "192.168.1.100",
+    "page": {
+      "url": "https://shop.example.com/products/wireless-headphones",
+      "title": "Premium Wireless Headphones - Shop",
+      "category": "electronics",
+      "referrer": "https://google.com/search"
+    },
+    "device": {
+      "type": "desktop",
+      "os": "Windows",
+      "browser": "Chrome"
+    }
+  },
+  {
+    "event_id": "EVT002",
+    "event_type": "product_view",
+    "timestamp": "2025-01-20T10:15:45Z",
+    "customer_id": "CUST001",
+    "session_id": "SES_20250120_001",
+    "product": {
+      "product_id": "PROD001",
+      "sku": "WH-1000XM5",
+      "name": "Premium Wireless Headphones",
+      "category": "Electronics > Audio > Headphones",
+      "price": 299.99,
+      "currency": "USD",
+      "brand": "AudioTech",
+      "color": "Black",
+      "in_stock": true
+    }
+  },
+  {
+    "event_id": "EVT003",
+    "event_type": "add_to_cart",
+    "timestamp": "2025-01-20T10:17:20Z",
+    "customer_id": "CUST001",
+    "session_id": "SES_20250120_001",
+    "product": {
+      "product_id": "PROD001",
+      "sku": "WH-1000XM5",
+      "name": "Premium Wireless Headphones",
+      "price": 299.99,
+      "quantity": 1,
+      "currency": "USD"
+    },
+    "cart": {
+      "cart_id": "CART_001",
+      "total_items": 1,
+      "subtotal": 299.99
+    }
+  },
+  {
+    "event_id": "EVT004",
+    "event_type": "checkout_started",
+    "timestamp": "2025-01-20T10:20:10Z",
+    "customer_id": "CUST001",
+    "session_id": "SES_20250120_001",
+    "cart": {
+      "cart_id": "CART_001",
+      "total_items": 1,
+      "subtotal": 299.99,
+      "tax": 24.00,
+      "shipping": 10.00,
+      "total": 333.99
+    }
+  },
+  {
+    "event_id": "EVT005",
+    "event_type": "purchase",
+    "timestamp": "2025-01-20T10:22:45Z",
+    "customer_id": "CUST001",
+    "session_id": "SES_20250120_001",
+    "order": {
+      "order_id": "ORD_20250120_001",
+      "total": 333.99,
+      "currency": "USD",
+      "payment_method": "credit_card",
+      "shipping_method": "standard",
+      "items": [
+        {
+          "product_id": "PROD001",
+          "sku": "WH-1000XM5",
+          "name": "Premium Wireless Headphones",
+          "price": 299.99,
+          "quantity": 1
+        }
+      ]
+    }
+  },
+  {
+    "event_id": "EVT006",
+    "event_type": "page_view",
+    "timestamp": "2025-01-21T14:30:00Z",
+    "customer_id": "CUST002",
+    "session_id": "SES_20250121_002",
+    "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
+    "ip_address": "192.168.2.50",
+    "page": {
+      "url": "https://shop.example.com/",
+      "title": "Home - Shop",
+      "category": "home",
+      "referrer": "https://facebook.com"
+    },
+    "device": {
+      "type": "mobile",
+      "os": "iOS",
+      "browser": "Safari"
+    }
+  },
+  {
+    "event_id": "EVT007",
+    "event_type": "search",
+    "timestamp": "2025-01-21T14:31:15Z",
+    "customer_id": "CUST002",
+    "session_id": "SES_20250121_002",
+    "search": {
+      "query": "running shoes",
+      "results_count": 42,
+      "filters": {
+        "category": "footwear",
+        "price_range": "50-150"
+      }
+    }
+  },
+  {
+    "event_id": "EVT008",
+    "event_type": "product_view",
+    "timestamp": "2025-01-21T14:32:30Z",
+    "customer_id": "CUST002",
+    "session_id": "SES_20250121_002",
+    "product": {
+      "product_id": "PROD015",
+      "sku": "SHOE-RUN-001",
+      "name": "Pro Runner Athletic Shoes",
+      "category": "Footwear > Athletic > Running",
+      "price": 89.99,
+      "currency": "USD",
+      "brand": "SportPro",
+      "size": "9",
+      "color": "Blue",
+      "in_stock": true
+    }
+  },
+  {
+    "event_id": "EVT009",
+    "event_type": "add_to_wishlist",
+    "timestamp": "2025-01-21T14:35:00Z",
+    "customer_id": "CUST002",
+    "session_id": "SES_20250121_002",
+    "product": {
+      "product_id": "PROD015",
+      "sku": "SHOE-RUN-001",
+      "name": "Pro Runner Athletic Shoes",
+      "price": 89.99
+    }
+  },
+  {
+    "event_id": "EVT010",
+    "event_type": "cart_abandoned",
+    "timestamp": "2025-01-22T16:45:00Z",
+    "customer_id": "CUST003",
+    "session_id": "SES_20250122_003",
+    "cart": {
+      "cart_id": "CART_003",
+      "total_items": 3,
+      "subtotal": 450.50,
+      "items": [
+        {
+          "product_id": "PROD020",
+          "name": "Smart Watch",
+          "price": 249.99,
+          "quantity": 1
+        },
+        {
+          "product_id": "PROD021",
+          "name": "Phone Case",
+          "price": 19.99,
+          "quantity": 2
+        }
+      ]
+    },
+    "abandonment_reason": "session_timeout"
+  }
+]

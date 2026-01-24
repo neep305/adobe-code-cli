@@ -1,0 +1,273 @@
+[
+  {
+    "order_id": "ORD_20250120_001",
+    "order_number": "ORD-2025-001234",
+    "customer_id": "CUST001",
+    "order_date": "2025-01-20T10:22:45Z",
+    "order_status": "completed",
+    "payment_status": "paid",
+    "fulfillment_status": "shipped",
+    "channel": "web",
+    "currency": "USD",
+    "subtotal": 299.99,
+    "tax": 24.00,
+    "shipping_cost": 10.00,
+    "discount": 0.00,
+    "total": 333.99,
+    "payment_method": "credit_card",
+    "payment_details": {
+      "card_type": "Visa",
+      "last_four": "4242"
+    },
+    "shipping_address": {
+      "recipient": "John Doe",
+      "street": "123 Main Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94102",
+      "country": "US"
+    },
+    "billing_address": {
+      "street": "123 Main Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94102",
+      "country": "US"
+    },
+    "items": [
+      {
+        "product_id": "PROD001",
+        "sku": "WH-1000XM5",
+        "name": "Premium Wireless Headphones",
+        "quantity": 1,
+        "unit_price": 299.99,
+        "total_price": 299.99,
+        "tax": 24.00
+      }
+    ],
+    "shipping_method": "standard",
+    "tracking_number": "1Z999AA10123456784",
+    "carrier": "UPS",
+    "estimated_delivery": "2025-01-25T00:00:00Z",
+    "notes": "Leave at door if no one home"
+  },
+  {
+    "order_id": "ORD_20250118_045",
+    "order_number": "ORD-2025-001189",
+    "customer_id": "CUST003",
+    "order_date": "2025-01-18T15:30:22Z",
+    "order_status": "completed",
+    "payment_status": "paid",
+    "fulfillment_status": "delivered",
+    "channel": "mobile_app",
+    "currency": "USD",
+    "subtotal": 379.97,
+    "tax": 30.40,
+    "shipping_cost": 0.00,
+    "discount": 38.00,
+    "total": 372.37,
+    "payment_method": "paypal",
+    "payment_details": {
+      "email": "michael.chen@example.com"
+    },
+    "shipping_address": {
+      "recipient": "Michael Chen",
+      "street": "789 Pine Street",
+      "city": "Seattle",
+      "state": "WA",
+      "postal_code": "98101",
+      "country": "US"
+    },
+    "billing_address": {
+      "street": "789 Pine Street",
+      "city": "Seattle",
+      "state": "WA",
+      "postal_code": "98101",
+      "country": "US"
+    },
+    "items": [
+      {
+        "product_id": "PROD015",
+        "sku": "SHOE-RUN-001",
+        "name": "Pro Runner Athletic Shoes",
+        "quantity": 2,
+        "unit_price": 89.99,
+        "total_price": 179.98,
+        "tax": 14.40
+      },
+      {
+        "product_id": "PROD021",
+        "sku": "ACC-CASE-100",
+        "name": "Premium Phone Case",
+        "quantity": 10,
+        "unit_price": 19.99,
+        "total_price": 199.99,
+        "tax": 16.00
+      }
+    ],
+    "shipping_method": "express",
+    "tracking_number": "1Z999AA10123456789",
+    "carrier": "FedEx",
+    "estimated_delivery": "2025-01-20T00:00:00Z",
+    "actual_delivery": "2025-01-20T14:22:00Z",
+    "discount_code": "LOYALTY10",
+    "notes": ""
+  },
+  {
+    "order_id": "ORD_20250115_023",
+    "order_number": "ORD-2025-001067",
+    "customer_id": "CUST005",
+    "order_date": "2025-01-15T09:45:10Z",
+    "order_status": "processing",
+    "payment_status": "paid",
+    "fulfillment_status": "pending",
+    "channel": "web",
+    "currency": "USD",
+    "subtotal": 1299.99,
+    "tax": 104.00,
+    "shipping_cost": 0.00,
+    "discount": 130.00,
+    "total": 1273.99,
+    "payment_method": "credit_card",
+    "payment_details": {
+      "card_type": "MasterCard",
+      "last_four": "5555"
+    },
+    "shipping_address": {
+      "recipient": "David Martinez",
+      "street": "555 Maple Drive",
+      "city": "Miami",
+      "state": "FL",
+      "postal_code": "33101",
+      "country": "US"
+    },
+    "billing_address": {
+      "street": "555 Maple Drive",
+      "city": "Miami",
+      "state": "FL",
+      "postal_code": "33101",
+      "country": "US"
+    },
+    "items": [
+      {
+        "product_id": "PROD035",
+        "sku": "LAPTOP-PRO-15",
+        "name": "Professional Laptop 15\"",
+        "quantity": 1,
+        "unit_price": 1299.99,
+        "total_price": 1299.99,
+        "tax": 104.00
+      }
+    ],
+    "shipping_method": "free_standard",
+    "discount_code": "WELCOME10",
+    "notes": "Gift wrap requested"
+  },
+  {
+    "order_id": "ORD_20241220_189",
+    "order_number": "ORD-2024-005432",
+    "customer_id": "CUST002",
+    "order_date": "2024-12-20T18:20:45Z",
+    "order_status": "completed",
+    "payment_status": "paid",
+    "fulfillment_status": "delivered",
+    "channel": "web",
+    "currency": "USD",
+    "subtotal": 249.99,
+    "tax": 20.00,
+    "shipping_cost": 15.00,
+    "discount": 25.00,
+    "total": 259.99,
+    "payment_method": "credit_card",
+    "payment_details": {
+      "card_type": "Amex",
+      "last_four": "1234"
+    },
+    "shipping_address": {
+      "recipient": "Jane Smith",
+      "street": "456 Oak Avenue",
+      "city": "Los Angeles",
+      "state": "CA",
+      "postal_code": "90001",
+      "country": "US"
+    },
+    "billing_address": {
+      "street": "456 Oak Avenue",
+      "city": "Los Angeles",
+      "state": "CA",
+      "postal_code": "90001",
+      "country": "US"
+    },
+    "items": [
+      {
+        "product_id": "PROD020",
+        "sku": "SW-SMART-500",
+        "name": "Smart Watch Pro",
+        "quantity": 1,
+        "unit_price": 249.99,
+        "total_price": 249.99,
+        "tax": 20.00
+      }
+    ],
+    "shipping_method": "standard",
+    "tracking_number": "1Z999AA10123456790",
+    "carrier": "USPS",
+    "estimated_delivery": "2024-12-27T00:00:00Z",
+    "actual_delivery": "2024-12-26T10:15:00Z",
+    "discount_code": "HOLIDAY10",
+    "notes": "",
+    "gift_message": "Merry Christmas!"
+  },
+  {
+    "order_id": "ORD_20250110_078",
+    "order_number": "ORD-2025-000912",
+    "customer_id": "CUST004",
+    "order_date": "2025-01-10T12:10:30Z",
+    "order_status": "cancelled",
+    "payment_status": "refunded",
+    "fulfillment_status": "cancelled",
+    "channel": "mobile_app",
+    "currency": "USD",
+    "subtotal": 89.99,
+    "tax": 7.20,
+    "shipping_cost": 10.00,
+    "discount": 0.00,
+    "total": 107.19,
+    "refund_amount": 107.19,
+    "payment_method": "credit_card",
+    "payment_details": {
+      "card_type": "Visa",
+      "last_four": "9876"
+    },
+    "shipping_address": {
+      "recipient": "Sarah Wilson",
+      "street": "321 Elm Road",
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "US"
+    },
+    "billing_address": {
+      "street": "321 Elm Road",
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "US"
+    },
+    "items": [
+      {
+        "product_id": "PROD015",
+        "sku": "SHOE-RUN-001",
+        "name": "Pro Runner Athletic Shoes",
+        "quantity": 1,
+        "unit_price": 89.99,
+        "total_price": 89.99,
+        "tax": 7.20
+      }
+    ],
+    "shipping_method": "standard",
+    "cancellation_reason": "customer_request",
+    "cancelled_at": "2025-01-11T08:30:00Z",
+    "notes": "Customer changed mind"
+  }
+]
