@@ -38,6 +38,10 @@ class AEPConfig(BaseSettings):
     # AI Provider Configuration
     anthropic_api_key: Optional[SecretStr] = Field(default=None, description="Anthropic API key")
     openai_api_key: Optional[SecretStr] = Field(default=None, description="OpenAI API key")
+    ai_provider: str = Field(
+        default="auto",
+        description="AI provider to use (auto, openai, anthropic)",
+    )
     ai_model: str = Field(
         default="claude-3-5-sonnet-20241022",
         description="AI model to use for inference",

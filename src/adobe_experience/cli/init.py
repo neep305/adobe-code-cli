@@ -24,17 +24,17 @@ def setup() -> None:
     # ASCII art banner
     banner = """
 
-      █████╗ ███████╗██████╗      ██████╗██╗     ██╗
-     ██╔══██╗██╔════╝██╔══██╗    ██╔════╝██║     ██║
-     ███████║█████╗  ██████╔╝    ██║     ██║     ██║
-     ██╔══██║██╔══╝  ██╔═══╝     ██║     ██║     ██║
-     ██║  ██║███████╗██║         ╚██████╗███████╗██║
-     ╚═╝  ╚═╝╚══════╝╚═╝          ╚═════╝╚══════╝╚═╝
+      █████╗ ██████╗  ██████╗ ██████╗ ███████╗     ██████╗ ██████╗ ██████╗ ███████╗
+     ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+     ███████║██║  ██║██║   ██║██████╔╝█████╗      ██║     ██║   ██║██║  ██║█████╗  
+     ██╔══██║██║  ██║██║   ██║██╔══██╗██╔══╝      ██║     ██║   ██║██║  ██║██╔══╝  
+     ██║  ██║██████╔╝╚██████╔╝██████╔╝███████╗    ╚██████╗╚██████╔╝██████╔╝███████╗
+     ╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
 
-           Adobe Experience Platform Agent
+           Adobe Experience Cloud Agent
     """
     
-    console.print(f"[bold red]{banner}[/bold red]")
+    console.print(f"[bold cyan]{banner}[/bold cyan]")
     
     console.print(Panel.fit(
         "[bold blue]Welcome to Adobe Experience Platform CLI Agent![/bold blue]\n\n"
@@ -63,6 +63,7 @@ def setup() -> None:
    - Data Ingestion (Read/Write)
    - Sandbox Management (Read)
 6. Generate credentials
+7. Note your Tenant ID from 'Credentials Details' tab
     """)
     
     if not Confirm.ask("\nHave you completed the Adobe Developer Console setup?", default=False):
@@ -75,20 +76,45 @@ def setup() -> None:
     
     # Collect credentials
     client_id = Prompt.ask("Client ID")
-    client_secret = Prompt.ask("Client Secret", password=True)
+    console.print("[yellow]Note: Input will be visible. Use Ctrl+V to paste.[/yellow]")
+    client_secret = Prompt.ask("Client Secret")
     org_id = Prompt.ask("Organization ID (format: XXXXX@AdobeOrg)")
     tech_account_id = Prompt.ask("Technical Account ID (format: XXXXX@techacct.adobe.com)")
     
-    console.print("\n[bold]Step 3: Sandbox Configuration[/bold]")
+    console.print("\n[bold]Step 3: Sandbox & Tenant Configuration[/bold]")
+    console.print("[dim]Tenant ID is required for schema operations[/dim]\n")
+    
     sandbox_name = Prompt.ask("Sandbox name", default="prod")
+    tenant_id = Prompt.ask(
+        "Tenant ID (find in Developer Console under 'Credentials Details')",
+        default=""
+    )
+    container_id = Prompt.ask("Container ID", default="tenant")
     
     console.print("\n[bold]Step 4: AI Configuration (Optional)[/bold]")
     console.print("[dim]For AI-powered schema generation and recommendations[/dim]\n")
     
     use_ai = Confirm.ask("Do you want to enable AI features?", default=True)
     anthropic_key = ""
+    openai_key = ""
+    
     if use_ai:
-        anthropic_key = Prompt.ask("Anthropic API Key", password=True, default="")
+        ai_provider = Prompt.ask(
+            "Which AI provider do you want to use?",
+            choices=["anthropic", "openai", "both", "skip"],
+            default="openai"
+        )
+        
+        if ai_provider == "anthropic" or ai_provider == "both":
+            console.print("[yellow]Note: Input will be visible. Use Ctrl+V to paste.[/yellow]")
+            anthropic_key = Prompt.ask("Anthropic API Key", default="")
+        
+        if ai_provider == "openai" or ai_provider == "both":
+            console.print("[yellow]Note: Input will be visible. Use Ctrl+V to paste.[/yellow]")
+            openai_key = Prompt.ask("OpenAI API Key", default="")
+        
+        if ai_provider != "skip":
+            console.print(f"\n[dim]Tip: You can change AI keys later with 'adobe ai set-key'[/dim]")
     
     # Create .env file
     env_content = f"""# Adobe Experience Platform Credentials
@@ -98,19 +124,37 @@ AEP_ORG_ID={org_id}
 AEP_TECHNICAL_ACCOUNT_ID={tech_account_id}
 AEP_SANDBOX_NAME={sandbox_name}
 
-# AI Provider
-ANTHROPIC_API_KEY={anthropic_key}
+# Tenant ID (Required for schema operations)
+AEP_TENANT_ID={tenant_id}
 
-# Optional: OpenAI (if using as alternative)
-# OPENAI_API_KEY=your_openai_api_key
+# Container ID (Schema Registry)
+AEP_CONTAINER_ID={container_id}
+
+# AI Provider Configuration
+ANTHROPIC_API_KEY={anthropic_key}
+OPENAI_API_KEY={openai_key}
 """
     
     env_path.write_text(env_content, encoding="utf-8")
     
     console.print("\n[bold green]✓ Configuration saved to .env[/bold green]")
+    
+    # Validation warnings
+    if not tenant_id:
+        console.print("\n[yellow]⚠ Warning: Tenant ID not provided[/yellow]")
+        console.print("[dim]  You won't be able to upload schemas until you add AEP_TENANT_ID to .env[/dim]")
+    
+    if not anthropic_key and not openai_key and use_ai:
+        console.print("\n[yellow]⚠ Warning: No AI API keys configured[/yellow]")
+        console.print("[dim]  AI features will be disabled. Run 'adobe ai set-key' to add them later[/dim]")
+    
     console.print("\n[bold]Next Steps:[/bold]")
-    console.print("1. Run: [cyan]adobe-aep auth test[/cyan] - Test your connection")
-    console.print("2. Run: [cyan]adobe-aep schema list[/cyan] - List existing schemas")
-    console.print("3. Run: [cyan]adobe-aep schema create --help[/cyan] - Create new schemas")
+    console.print("1. Run: [cyan]adobe auth test[/cyan] - Test your connection")
+    console.print("2. Run: [cyan]adobe aep schema list[/cyan] - List existing schemas")
+    console.print("3. Run: [cyan]adobe aep schema create --help[/cyan] - Create new schemas")
+    
+    if use_ai and (anthropic_key or openai_key):
+        console.print("4. Run: [cyan]adobe ai list-keys[/cyan] - View AI configuration")
     
     console.print("\n[dim]Tip: Never commit .env file to version control![/dim]")
+    console.print("[dim]Tip: Use 'adobe ai set-key' to update AI keys anytime[/dim]")

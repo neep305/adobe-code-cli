@@ -140,18 +140,19 @@ def create_schema(
         # Upload to AEP
         if upload:
             config = get_config()
-            client = AEPClient(config)
-            registry = XDMSchemaRegistry(client)
 
             console.print("\n[bold cyan]Uploading schema to AEP...[/bold cyan]")
 
             try:
-                uploaded_schema = asyncio.run(
-                    registry.create_schema(
-                        schema,
-                        class_id=class_id or "https://ns.adobe.com/xdm/context/experienceevent"
-                    )
-                )
+                async def upload_schema():
+                    async with AEPClient(config) as client:
+                        registry = XDMSchemaRegistry(client)
+                        return await registry.create_schema(
+                            schema,
+                            class_id=class_id or "https://ns.adobe.com/xdm/context/experienceevent"
+                        )
+                
+                uploaded_schema = asyncio.run(upload_schema())
 
                 console.print(f"[green]✓[/green] Schema uploaded successfully!")
                 console.print(f"  Schema ID: [cyan]{uploaded_schema.get('$id', 'N/A')}[/cyan]")
@@ -181,11 +182,17 @@ def list_schemas(
         from adobe_experience.schema.xdm import XDMSchemaRegistry
 
         config = get_config()
-        client = AEPClient(config)
-        registry = XDMSchemaRegistry(client)
+        
+        async def fetch_schemas():
+            async with AEPClient(config) as client:
+                registry = XDMSchemaRegistry(client)
+                return await registry.list_schemas()
 
         with console.status("[bold blue]Fetching schemas from AEP..."):
-            schemas = asyncio.run(registry.list_schemas())
+            response = asyncio.run(fetch_schemas())
+        
+        # Extract schemas from response
+        schemas = response.get("results", [])
 
         if not schemas:
             console.print("[yellow]No schemas found[/yellow]")
@@ -233,11 +240,14 @@ def get_schema(
         from adobe_experience.schema.xdm import XDMSchemaRegistry
 
         config = get_config()
-        client = AEPClient(config)
-        registry = XDMSchemaRegistry(client)
+        
+        async def fetch_schema():
+            async with AEPClient(config) as client:
+                registry = XDMSchemaRegistry(client)
+                return await registry.get_schema(schema_id)
 
         with console.status(f"[bold blue]Fetching schema {schema_id}..."):
-            schema = asyncio.run(registry.get_schema(schema_id))
+            schema = asyncio.run(fetch_schema())
 
         console.print(f"\n[green]✓[/green] Schema retrieved successfully")
 
