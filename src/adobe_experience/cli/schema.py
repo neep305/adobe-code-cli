@@ -112,11 +112,15 @@ def create_schema(
                     console.print(f"  • {issue}")
 
         else:
+            # Load config for tenant_id even without AI
+            config = get_config()
             with console.status("[bold blue]Analyzing schema structure..."):
                 schema = XDMSchemaAnalyzer.from_sample_data(
                     sample_data,
                     name,
                     description,
+                    tenant_id=config.aep_tenant_id,
+                    class_id=class_id,
                 )
 
         console.print(f"\n[green]✓[/green] Schema '{name}' generated successfully")
@@ -147,10 +151,7 @@ def create_schema(
                 async def upload_schema():
                     async with AEPClient(config) as client:
                         registry = XDMSchemaRegistry(client)
-                        return await registry.create_schema(
-                            schema,
-                            class_id=class_id or "https://ns.adobe.com/xdm/context/experienceevent"
-                        )
+                        return await registry.create_schema(schema)
                 
                 uploaded_schema = asyncio.run(upload_schema())
 
@@ -264,6 +265,107 @@ def get_schema(
         if output:
             output.write_text(json.dumps(schema, indent=2), encoding="utf-8")
             console.print(f"\n[green]✓[/green] Schema saved to {output}")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@schema_app.command("list-fieldgroups")
+def list_field_groups(
+    limit: int = typer.Option(10, "--limit", "-l", help="Number of field groups to display"),
+    container: str = typer.Option("tenant", "--container", "-c", help="Container ID (tenant or global)"),
+) -> None:
+    """List field groups from Adobe Experience Platform.
+
+    Examples:
+        adobe aep schema list-fieldgroups
+        adobe aep schema list-fieldgroups --limit 20 --container global
+    """
+    try:
+        from adobe_experience.aep.client import AEPClient
+        from adobe_experience.core.config import get_config
+        from adobe_experience.schema.xdm import XDMSchemaRegistry
+
+        config = get_config()
+        
+        async def fetch_field_groups():
+            async with AEPClient(config) as client:
+                registry = XDMSchemaRegistry(client)
+                return await registry.list_field_groups(container_id=container, limit=limit)
+
+        with console.status("[bold blue]Fetching field groups from AEP..."):
+            response = asyncio.run(fetch_field_groups())
+        
+        # Extract field groups from response
+        field_groups = response.get("results", [])
+
+        if not field_groups:
+            console.print("[yellow]No field groups found[/yellow]")
+            return
+
+        # Display table
+        table = Table(title=f"Field Groups (showing {min(limit, len(field_groups))} of {len(field_groups)})")
+        table.add_column("Title", style="cyan", no_wrap=False)
+        table.add_column("ID", style="green")
+        table.add_column("Version", style="yellow")
+
+        for fg in field_groups[:limit]:
+            table.add_row(
+                fg.get("title", "N/A"),
+                fg.get("$id", "N/A"),
+                fg.get("version", "N/A"),
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@schema_app.command("get-fieldgroup")
+def get_field_group(
+    field_group_id: str = typer.Argument(..., help="Field group ID"),
+    container: str = typer.Option("tenant", "--container", "-c", help="Container ID (tenant or global)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save to file"),
+) -> None:
+    """Get a specific field group by ID.
+
+    Examples:
+        adobe aep schema get-fieldgroup <FIELD_GROUP_ID>
+        adobe aep schema get-fieldgroup <ID> --output fieldgroup.json
+    """
+    try:
+        from adobe_experience.aep.client import AEPClient
+        from adobe_experience.core.config import get_config
+        from adobe_experience.schema.xdm import XDMSchemaRegistry
+
+        config = get_config()
+        
+        async def fetch_field_group():
+            async with AEPClient(config) as client:
+                registry = XDMSchemaRegistry(client)
+                return await registry.get_field_group(field_group_id, container_id=container)
+
+        with console.status(f"[bold blue]Fetching field group {field_group_id}..."):
+            field_group = asyncio.run(fetch_field_group())
+
+        console.print(f"\n[green]✓[/green] Field group retrieved successfully")
+
+        # Display field group
+        syntax = Syntax(
+            json.dumps(field_group, indent=2),
+            "json",
+            theme="monokai",
+            line_numbers=True,
+        )
+        console.print(syntax)
+
+        # Save to file
+        if output:
+            output.write_text(json.dumps(field_group, indent=2), encoding="utf-8")
+            console.print(f"\n[green]✓[/green] Field group saved to {output}")
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")

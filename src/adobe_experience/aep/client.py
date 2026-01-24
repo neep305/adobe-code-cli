@@ -220,3 +220,21 @@ class AEPClient:
             Response JSON.
         """
         return await self._request_with_retry("DELETE", path, headers=headers)
+
+    async def patch(
+        self,
+        path: str,
+        json: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """Make PATCH request.
+
+        Args:
+            path: API path.
+            json: JSON body (JSON Patch format for Schema Registry).
+            headers: Additional headers.
+
+        Returns:
+            Response JSON.
+        """
+        return await self._request_with_retry("PATCH", path, json=json, headers=headers)

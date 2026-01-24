@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import quote
 
 from adobe_experience.aep.client import AEPClient
 from adobe_experience.schema.models import (
@@ -150,6 +151,7 @@ class XDMSchemaAnalyzer:
         schema_name: str,
         schema_description: Optional[str] = None,
         tenant_id: Optional[str] = None,
+        class_id: Optional[str] = None,
     ) -> XDMSchema:
         """Generate XDM schema from sample data.
 
@@ -158,6 +160,7 @@ class XDMSchemaAnalyzer:
             schema_name: Schema name/title.
             schema_description: Schema description.
             tenant_id: AEP tenant ID for schema namespace.
+            class_id: XDM class ID (e.g., https://ns.adobe.com/xdm/context/profile).
 
         Returns:
             Generated XDM schema.
@@ -186,14 +189,18 @@ class XDMSchemaAnalyzer:
         else:
             schema_id = f"https://ns.adobe.com/{schema_name_slug}"
 
+        # Use provided class_id or default to profile
+        effective_class_id = class_id or "https://ns.adobe.com/xdm/context/profile"
+
         return XDMSchema(
             schema_id=schema_id,
             title=schema_name,
             description=schema_description or f"Auto-generated schema for {schema_name}",
             type=XDMDataType.OBJECT,
             properties=properties,
+            meta_class=effective_class_id,
             all_of=[
-                XDMSchemaRef(ref="https://ns.adobe.com/xdm/context/profile"),
+                XDMSchemaRef(ref=effective_class_id),
             ],
         )
 
@@ -264,7 +271,9 @@ class XDMSchemaRegistry:
         Returns:
             Schema definition.
         """
-        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{schema_id}"
+        # URL encode schema_id to handle special characters (e.g., https://)
+        encoded_id = quote(schema_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{encoded_id}"
 
         return await self.client.get(
             path,
@@ -298,7 +307,9 @@ class XDMSchemaRegistry:
         Returns:
             Updated schema response.
         """
-        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{schema_id}"
+        # URL encode schema_id to handle special characters
+        encoded_id = quote(schema_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{encoded_id}"
         schema_data = schema.model_dump(by_alias=True, exclude_none=True)
 
         return await self.client.put(
@@ -316,6 +327,238 @@ class XDMSchemaRegistry:
         Returns:
             Delete response.
         """
-        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{schema_id}"
+        # URL encode schema_id to handle special characters
+        encoded_id = quote(schema_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/schemas/{encoded_id}"
+
+        return await self.client.delete(path)
+
+    # Field Groups API
+    async def list_field_groups(
+        self,
+        container_id: str = "tenant",
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """List field groups.
+
+        Args:
+            container_id: Container ID (tenant or global).
+            limit: Maximum number of field groups to return.
+
+        Returns:
+            List of field groups.
+        """
+        path = f"{self.SCHEMA_REGISTRY_PATH}/{container_id}/fieldgroups"
+
+        return await self.client.get(
+            path,
+            params={"limit": limit},
+            headers={"Accept": "application/vnd.adobe.xed-id+json"},
+        )
+
+    async def get_field_group(
+        self,
+        field_group_id: str,
+        container_id: str = "tenant",
+    ) -> Dict[str, Any]:
+        """Get field group by ID.
+
+        Args:
+            field_group_id: Field group ID.
+            container_id: Container ID (tenant or global).
+
+        Returns:
+            Field group definition.
+        """
+        encoded_id = quote(field_group_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/{container_id}/fieldgroups/{encoded_id}"
+
+        return await self.client.get(
+            path,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def create_field_group(
+        self,
+        field_group: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Create a custom field group.
+
+        Args:
+            field_group: Field group definition.
+
+        Returns:
+            Created field group response.
+        """
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups"
+
+        return await self.client.post(
+            path,
+            json=field_group,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def update_field_group(
+        self,
+        field_group_id: str,
+        field_group: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Update a custom field group (full replacement).
+
+        Args:
+            field_group_id: Field group ID to update.
+            field_group: Updated field group definition.
+
+        Returns:
+            Updated field group response.
+        """
+        encoded_id = quote(field_group_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups/{encoded_id}"
+
+        return await self.client.put(
+            path,
+            json=field_group,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def patch_field_group(
+        self,
+        field_group_id: str,
+        patch_operations: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Partially update a field group using JSON Patch.
+
+        Args:
+            field_group_id: Field group ID to update.
+            patch_operations: JSON Patch operations (RFC 6902).
+
+        Returns:
+            Updated field group response.
+        """
+        encoded_id = quote(field_group_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups/{encoded_id}"
+
+        return await self.client.patch(
+            path,
+            json=patch_operations,
+            headers={
+                "Accept": "application/vnd.adobe.xed-full+json; version=1",
+                "Content-Type": "application/json-patch+json",
+            },
+        )
+
+    async def delete_field_group(self, field_group_id: str) -> Dict[str, Any]:
+        """Delete a custom field group.
+
+        Args:
+            field_group_id: Field group ID to delete.
+
+        Returns:
+            Delete response.
+        """
+        encoded_id = quote(field_group_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups/{encoded_id}"
+
+        return await self.client.delete(path)
+
+    # Descriptors API
+    async def list_descriptors(
+        self,
+        container_id: str = "tenant",
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """List descriptors.
+
+        Args:
+            container_id: Container ID (tenant or global).
+            limit: Maximum number of descriptors to return.
+
+        Returns:
+            List of descriptors.
+        """
+        path = f"{self.SCHEMA_REGISTRY_PATH}/{container_id}/descriptors"
+
+        return await self.client.get(
+            path,
+            params={"limit": limit},
+            headers={"Accept": "application/vnd.adobe.xed-id+json"},
+        )
+
+    async def get_descriptor(
+        self,
+        descriptor_id: str,
+        container_id: str = "tenant",
+    ) -> Dict[str, Any]:
+        """Get descriptor by ID.
+
+        Args:
+            descriptor_id: Descriptor ID.
+            container_id: Container ID (tenant or global).
+
+        Returns:
+            Descriptor definition.
+        """
+        encoded_id = quote(descriptor_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/{container_id}/descriptors/{encoded_id}"
+
+        return await self.client.get(
+            path,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def create_descriptor(
+        self,
+        descriptor: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Create a descriptor (e.g., identity, relationship, friendly name).
+
+        Args:
+            descriptor: Descriptor definition.
+
+        Returns:
+            Created descriptor response.
+        """
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/descriptors"
+
+        return await self.client.post(
+            path,
+            json=descriptor,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def update_descriptor(
+        self,
+        descriptor_id: str,
+        descriptor: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Update a descriptor (full replacement).
+
+        Args:
+            descriptor_id: Descriptor ID to update.
+            descriptor: Updated descriptor definition.
+
+        Returns:
+            Updated descriptor response.
+        """
+        encoded_id = quote(descriptor_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/descriptors/{encoded_id}"
+
+        return await self.client.put(
+            path,
+            json=descriptor,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def delete_descriptor(self, descriptor_id: str) -> Dict[str, Any]:
+        """Delete a descriptor.
+
+        Args:
+            descriptor_id: Descriptor ID to delete.
+
+        Returns:
+            Delete response.
+        """
+        encoded_id = quote(descriptor_id, safe="")
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/descriptors/{encoded_id}"
 
         return await self.client.delete(path)
