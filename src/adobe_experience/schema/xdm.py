@@ -144,6 +144,16 @@ class XDMSchemaAnalyzer:
 
         return field
 
+    # Standard XDM Profile fields that should not be in tenant namespace
+    XDM_PROFILE_STANDARD_FIELDS = {
+        "email", "emailAddress", "personalEmail",
+        "firstName", "first_name", "lastName", "last_name",
+        "phone", "phoneNumber", "mobilePhone",
+        "birthDate", "birth_date", "gender",
+        "homeAddress", "workAddress", "mailingAddress",
+        "person", "personName"
+    }
+
     @classmethod
     def from_sample_data(
         cls,
@@ -173,21 +183,47 @@ class XDMSchemaAnalyzer:
         for record in data:
             all_fields.update(record.keys())
 
-        # Analyze each field with tenant prefix
-        properties = {}
+        # Separate standard XDM fields from custom fields
+        custom_properties = {}
+        standard_properties = {}
+        
         for field_name in all_fields:
             sample_values = [record.get(field_name) for record in data]
             field = cls.analyze_field(field_name, sample_values)
-            # Prefix field name with tenant ID if provided
-            prefixed_name = f"{tenant_id}:{field_name}" if tenant_id else field_name
-            properties[prefixed_name] = field
+            
+            # Check if it's a standard XDM field
+            if field_name.lower().replace("_", "") in {f.lower().replace("_", "") for f in cls.XDM_PROFILE_STANDARD_FIELDS}:
+                # Map to XDM standard structure
+                if "email" in field_name.lower():
+                    # Don't add email to custom fields, it's handled by Profile class
+                    continue
+                elif "first" in field_name.lower() and "name" in field_name.lower():
+                    # Don't add, handled by person.name.firstName
+                    continue
+                elif "last" in field_name.lower() and "name" in field_name.lower():
+                    # Don't add, handled by person.name.lastName  
+                    continue
+                else:
+                    standard_properties[field_name] = field
+            else:
+                custom_properties[field_name] = field
 
-        # Create schema with proper tenant namespace
+        # Create schema structure with tenant namespace
         schema_name_slug = schema_name.lower().replace(" ", "_")
-        if tenant_id:
+        if tenant_id and custom_properties:
             schema_id = f"https://ns.adobe.com/{tenant_id}/schemas/{schema_name_slug}"
+            # Custom fields must be nested under _<tenant_id>
+            properties = {
+                f"_{tenant_id}": XDMField(
+                    title=f"{schema_name} Custom Fields",
+                    description="Custom tenant-specific fields",
+                    type=XDMDataType.OBJECT,
+                    properties=custom_properties,
+                )
+            }
         else:
             schema_id = f"https://ns.adobe.com/{schema_name_slug}"
+            properties = custom_properties if custom_properties else standard_properties
 
         # Use provided class_id or default to profile
         effective_class_id = class_id or "https://ns.adobe.com/xdm/context/profile"

@@ -1,0 +1,29 @@
+[
+  {
+    "customer_id": "CUST003",
+    "email": "invalid-email",
+    "first_name": "Bob",
+    "last_name": "Wilson",
+    "age": "forty-two",
+    "account_created": "2024-01-20",
+    "loyalty_points": 1500
+  },
+  {
+    "customer_id": "CUST004",
+    "email": "alice.brown@example.com",
+    "first_name": "Alice",
+    "last_name": "Brown",
+    "age": 31,
+    "phone": "+1-555-0199",
+    "account_created": "2024-02-15T14:20:00Z"
+  },
+  {
+    "customer_id": "CUST005",
+    "email": "charlie.davis@test.com",
+    "first_name": "Charlie",
+    "last_name": "Davis",
+    "age": 45,
+    "account_created": "2024-03-10T11:45:00Z",
+    "premium_member": true
+  }
+]
