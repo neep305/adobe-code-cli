@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -13,6 +14,59 @@ from rich.table import Table
 
 console = Console()
 schema_app = typer.Typer(help="XDM schema management commands")
+
+
+def _get_workspace_output_dir() -> tuple[Path, Path]:
+    """Get or create workspace output directory.
+    
+    Returns:
+        Tuple of (workspace_root, output_dir)
+    """
+    # Search for .adobe-workspace from current directory upward
+    current = Path.cwd()
+    workspace_root = None
+    
+    for parent in [current] + list(current.parents):
+        workspace_candidate = parent / ".adobe-workspace"
+        if workspace_candidate.exists():
+            workspace_root = parent
+            break
+    
+    # If no workspace found, create in current directory
+    if workspace_root is None:
+        workspace_root = current
+        workspace_dir = current / ".adobe-workspace"
+        workspace_dir.mkdir(exist_ok=True)
+    
+    # Create output/ai-analysis directory
+    output_dir = workspace_root / ".adobe-workspace" / "output" / "ai-analysis"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    return workspace_root, output_dir
+
+
+def _generate_default_output_path(dataset_dir: Path, format_type: str) -> Path:
+    """Generate default output path based on dataset name and format.
+    
+    Args:
+        dataset_dir: Dataset directory path
+        format_type: Output format (json, mermaid, markdown)
+    
+    Returns:
+        Full output file path
+    """
+    workspace_root, output_dir = _get_workspace_output_dir()
+    dataset_name = dataset_dir.name.lower()
+    
+    # Map format to file extension
+    format_map = {
+        "json": f"{dataset_name}_analysis.json",
+        "mermaid": f"{dataset_name}_erd.mmd",
+        "markdown": f"{dataset_name}_report.md",
+    }
+    
+    filename = format_map.get(format_type, f"{dataset_name}_analysis.json")
+    return output_dir / filename
 
 
 @schema_app.command("create")
@@ -684,7 +738,7 @@ def analyze_dataset(
     format_type: str = typer.Option(
         "rich",
         "--format",
-        help="Output format: rich (default), json, mermaid",
+        help="Output format: rich (terminal), json (JSON file), mermaid (ERD), markdown (full report)",
     ),
 ) -> None:
     """Analyze multi-file dataset and infer ERD relationships using AI.
@@ -763,36 +817,106 @@ def analyze_dataset(
     console.print(f"[green]✓[/green] Analysis complete\n")
     
     # Step 3: Display Results
-    if format_type == "json":
-        # JSON output
-        output_data = analysis.model_dump()
-        if output:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(output_data, f, indent=2)
-            console.print(f"[green]Analysis saved to {output}[/green]")
-        else:
-            console.print(json.dumps(output_data, indent=2))
-    
-    elif format_type == "mermaid":
-        # Mermaid ERD output
-        mermaid_code = _generate_mermaid_erd(analysis)
-        if output:
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(mermaid_code)
-            console.print(f"[green]Mermaid ERD saved to {output}[/green]")
-        else:
-            console.print("\n[bold]Mermaid ERD Diagram:[/bold]")
-            console.print(Syntax(mermaid_code, "mermaid", theme="monokai"))
-    
-    else:
-        # Rich visual output (default)
-        _display_analysis_rich(analysis, scan_result)
+    try:
+        # Generate default output path if not provided
+        if not output and format_type != "rich":
+            output = _generate_default_output_path(dataset_dir, format_type)
         
-        # Save JSON if output specified
+        # Get workspace root for relative path display
+        workspace_root = None
         if output:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(analysis.model_dump(), f, indent=2)
-            console.print(f"\n[green]Analysis also saved to {output}[/green]")
+            try:
+                workspace_root, _ = _get_workspace_output_dir()
+                # Try to calculate relative path - if it fails, output is outside workspace
+                try:
+                    output.resolve().relative_to(workspace_root.resolve())
+                except ValueError:
+                    # Output is outside workspace
+                    workspace_root = None
+            except (OSError, RuntimeError):
+                # Can't determine workspace
+                workspace_root = None
+        
+        if format_type == "json":
+            # JSON output
+            output_data = analysis.model_dump()
+            if output:
+                with open(output, "w", encoding="utf-8") as f:
+                    json.dump(output_data, f, indent=2)
+                if workspace_root:
+                    try:
+                        rel_path = output.resolve().relative_to(workspace_root.resolve())
+                    except ValueError:
+                        rel_path = output.resolve()
+                else:
+                    rel_path = output.resolve()
+                console.print(f"[green]✓ JSON analysis saved to {rel_path}[/green]")
+            else:
+                console.print(json.dumps(output_data, indent=2))
+        
+        elif format_type == "mermaid":
+            # Mermaid ERD output
+            mermaid_code = _generate_mermaid_erd(analysis, scan_result)
+            if output:
+                with open(output, "w", encoding="utf-8") as f:
+                    f.write(mermaid_code)
+                if workspace_root:
+                    try:
+                        rel_path = output.resolve().relative_to(workspace_root.resolve())
+                    except ValueError:
+                        rel_path = output.resolve()
+                else:
+                    rel_path = output.resolve()
+                console.print(f"[green]✓ Mermaid ERD saved to {rel_path}[/green]")
+            else:
+                console.print("\n[bold]Mermaid ERD Diagram:[/bold]")
+                console.print(Syntax(mermaid_code, "mermaid", theme="monokai"))
+        
+        elif format_type == "markdown":
+            # Markdown full report output
+            markdown_content = _format_analysis_markdown(analysis, scan_result, dataset_dir.name)
+            if output:
+                with open(output, "w", encoding="utf-8") as f:
+                    f.write(markdown_content)
+                if workspace_root:
+                    try:
+                        rel_path = output.resolve().relative_to(workspace_root.resolve())
+                    except ValueError:
+                        rel_path = output.resolve()
+                else:
+                    rel_path = output.resolve()
+                console.print(f"[green]✓ Markdown report saved to {rel_path}[/green]")
+            else:
+                console.print(markdown_content)
+        
+        else:
+            # Rich visual output (default)
+            _display_analysis_rich(analysis, scan_result)
+            
+            # Save JSON if output specified
+            if output:
+                with open(output, "w", encoding="utf-8") as f:
+                    json.dump(analysis.model_dump(), f, indent=2)
+                if workspace_root:
+                    try:
+                        rel_path = output.resolve().relative_to(workspace_root.resolve())
+                    except ValueError:
+                        rel_path = output.resolve()
+                else:
+                    rel_path = output.resolve()
+                console.print(f"\n[green]✓ Analysis saved to {rel_path}[/green]")
+    
+    except PermissionError as e:
+        console.print(f"[red]✗ Error: Permission denied - cannot write to {output}[/red]")
+        console.print(f"[red]  Details: {e}[/red]")
+        raise typer.Exit(1)
+    except OSError as e:
+        console.print(f"[red]✗ Error: Failed to create output directory or file[/red]")
+        console.print(f"[red]  Details: {e}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]✗ Error: Unexpected error saving file: {e}[/red]")
+        raise typer.Exit(1)
 
 
 def _display_analysis_rich(analysis, scan_result) -> None:
@@ -885,33 +1009,198 @@ def _display_analysis_rich(analysis, scan_result) -> None:
     ))
 
 
-def _generate_mermaid_erd(analysis) -> str:
-    """Generate Mermaid ERD diagram code."""
+def _generate_mermaid_erd(analysis, scan_result=None) -> str:
+    """Generate Mermaid ERD diagram code.
+    
+    Args:
+        analysis: Dataset analysis result.
+        scan_result: Optional dataset scan result for field details.
+    """
     lines = ["erDiagram"]
     
-    # Add entities
-    for entity in analysis.entities:
-        lines.append(f"    {entity.upper()} {{")
-        # We don't have field details here, just add placeholder
-        lines.append("        string fields")
-        lines.append("    }")
+    # Add entities with fields
+    if scan_result:
+        for entity_meta in scan_result.entities:
+            entity_name = entity_meta.entity_name.upper()
+            lines.append(f"    {entity_name} {{")
+            
+            # Add key fields first (limit to 10 fields)
+            for field_name, field_meta in list(entity_meta.fields.items())[:10]:
+                field_type = field_meta.detected_type
+                key_marker = ""
+                
+                if field_name == entity_meta.potential_primary_key:
+                    key_marker = " PK"
+                elif field_name in entity_meta.potential_foreign_keys:
+                    key_marker = " FK"
+                
+                lines.append(f"        {field_type} {field_name}{key_marker}")
+            
+            # Note: Don't add "..." as it's invalid Mermaid syntax
+            # Simply show the first 10 fields
+            
+            lines.append("    }")
+    else:
+        # Fallback if no scan result
+        for entity in analysis.entities:
+            lines.append(f"    {entity.upper()} {{")
+            lines.append("        string id PK")
+            lines.append("    }")
     
-    # Add relationships
+    # Add relationships with correct Mermaid syntax
     for rel in analysis.relationships:
         source = rel.source_entity.upper()
         target = rel.target_entity.upper()
         
         # Convert relationship type to Mermaid syntax
+        # Format: <left_entity> <left_card><line><right_card> <right_entity>
         if rel.relationship_type.value == "1:1":
+            # One to one
             marker = "||--||"
+            label = f"has_{rel.source_field}"
         elif rel.relationship_type.value == "1:N":
+            # One to many (source has many targets)
             marker = "||--o{"
+            label = f"has_many_{target.lower()}"
+        elif rel.relationship_type.value == "N:1":
+            # Many to one (many sources belong to one target)
+            marker = "}o--||"
+            label = f"belongs_to_{target.lower()}"
         elif rel.relationship_type.value == "N:M":
+            # Many to many
             marker = "}o--o{"
+            label = f"relates_to_{target.lower()}"
         else:
-            marker = "..--"
+            # Unknown - use identifying relationship
+            marker = "||--|{"
+            label = rel.source_field
         
-        lines.append(f"    {source} {marker} {target} : \"{rel.source_field}\"")
+        lines.append(f"    {source} {marker} {target} : \"{label}\"")
+    
+    return "\n".join(lines)
+
+
+def _format_analysis_markdown(analysis, scan_result, dataset_name: str) -> str:
+    """Format analysis results as comprehensive markdown report.
+    
+    Args:
+        analysis: DatasetAnalysisResult from AI inference
+        scan_result: DatasetScanResult from dataset scanner
+        dataset_name: Name of the dataset
+    
+    Returns:
+        Formatted markdown content
+    """
+    lines = []
+    
+    # Header section
+    lines.append(f"# Dataset Analysis Report: {dataset_name}")
+    lines.append("")
+    lines.append(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append("")
+    
+    # Summary statistics
+    total_entities = len(scan_result.entities)
+    total_records = sum(e.record_count for e in scan_result.entities)
+    total_relationships = len(analysis.relationships)
+    
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **Entities**: {total_entities}")
+    lines.append(f"- **Total Records**: {total_records}")
+    lines.append(f"- **Relationships**: {total_relationships}")
+    lines.append(f"- **XDM Recommendations**: {len(analysis.xdm_class_recommendations)}")
+    lines.append("")
+    
+    # ERD Diagram
+    lines.append("## ERD Diagram")
+    lines.append("")
+    mermaid_code = _generate_mermaid_erd(analysis, scan_result)
+    lines.append("```mermaid")
+    lines.append(mermaid_code)
+    lines.append("```")
+    lines.append("")
+    
+    # Discovered Entities
+    lines.append("## Discovered Entities")
+    lines.append("")
+    lines.append("| Entity | Records | Fields | Primary Key | Foreign Keys |")
+    lines.append("| --- | --- | --- | --- | --- |")
+    
+    for entity_meta in scan_result.entities:
+        fk_list = ", ".join(entity_meta.potential_foreign_keys) if entity_meta.potential_foreign_keys else "-"
+        lines.append(
+            f"| {entity_meta.entity_name} | {entity_meta.record_count} | {len(entity_meta.fields)} | "
+            f"{entity_meta.potential_primary_key or '-'} | {fk_list} |"
+        )
+    
+    lines.append("")
+    
+    # Entity Relationships
+    lines.append("## Entity Relationships")
+    lines.append("")
+    
+    if analysis.relationships:
+        lines.append("| From | To | Type | Confidence | Description |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        
+        for rel in analysis.relationships:
+            confidence_pct = f"{rel.confidence * 100:.0f}%"
+            rel_type = rel.relationship_type.value.replace("_", " ").title()
+            lines.append(
+                f"| {rel.source_entity} | {rel.target_entity} | {rel_type} | "
+                f"{confidence_pct} | {rel.reasoning or '-'} |"
+            )
+    else:
+        lines.append("No relationships detected.")
+    
+    lines.append("")
+    
+    # XDM Schema Recommendations
+    lines.append("## XDM Schema Recommendations")
+    lines.append("")
+    
+    if analysis.xdm_class_recommendations:
+        lines.append("| Entity | XDM Class | Confidence | Field Groups |")
+        lines.append("| --- | --- | --- | --- |")
+        
+        for rec in analysis.xdm_class_recommendations:
+            confidence_pct = f"{rec.confidence * 100:.0f}%"
+            class_name = rec.recommended_class.split("/")[-1] if rec.recommended_class else "N/A"
+            
+            # Get field groups from the analysis result's field_group_suggestions dict
+            field_groups_list = analysis.field_group_suggestions.get(rec.entity_name, [])
+            field_groups = ", ".join(field_groups_list[:3]) if field_groups_list else "-"
+            if len(field_groups_list) > 3:
+                field_groups += "..."
+            
+            lines.append(
+                f"| {rec.entity_name} | {class_name} | {confidence_pct} | {field_groups} |"
+            )
+    else:
+        lines.append("No XDM recommendations available.")
+    
+    lines.append("")
+    
+    # Identity Strategies
+    lines.append("## Identity Strategies")
+    lines.append("")
+    
+    if analysis.identity_strategies:
+        lines.append("| Entity | Primary Identity | Namespace | Additional Identities |")
+        lines.append("| --- | --- | --- | --- |")
+        
+        for strategy in analysis.identity_strategies:
+            additional = ", ".join(strategy.additional_identity_fields) if strategy.additional_identity_fields else "-"
+            
+            lines.append(
+                f"| {strategy.entity_name} | {strategy.primary_identity_field} | "
+                f"{strategy.identity_namespace} | {additional} |"
+            )
+    else:
+        lines.append("No identity strategies defined.")
+    
+    lines.append("")
     
     return "\n".join(lines)
 
