@@ -11,9 +11,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.prompt import Confirm
 
 console = Console()
 schema_app = typer.Typer(help="XDM schema management commands")
+template_app = typer.Typer(help="Schema template management")
 
 
 def _get_workspace_output_dir() -> tuple[Path, Path]:
@@ -1203,6 +1205,219 @@ def _format_analysis_markdown(analysis, scan_result, dataset_name: str) -> str:
     lines.append("")
     
     return "\n".join(lines)
+
+
+# ===========================
+# Template Management Commands
+# ===========================
+
+@template_app.command("list")
+def list_templates() -> None:
+    """List all available schema templates.
+    
+    Examples:
+        adobe aep schema template list
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    templates = manager.list_templates()
+    
+    if not templates:
+        console.print("[yellow]No templates found[/yellow]")
+        return
+    
+    # Create table
+    table = Table(title="Schema Templates", show_header=True, header_style="bold cyan")
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("Title", style="white")
+    table.add_column("Domain", style="magenta")
+    table.add_column("Fields", justify="right", style="green")
+    table.add_column("Source", style="yellow")
+    
+    for template in templates:
+        source = "Built-in" if template.name in ["customer-profile", "product-catalog", "order-event"] else "Custom"
+        field_count = str(len(template.sample_fields))
+        
+        table.add_row(
+            template.name,
+            template.title,
+            template.domain,
+            field_count,
+            source,
+        )
+    
+    console.print(table)
+    console.print(f"\n[dim]Total: {len(templates)} templates[/dim]")
+
+
+@template_app.command("show")
+def show_template(
+    name: str = typer.Argument(..., help="Template name"),
+) -> None:
+    """Show detailed information about a template.
+    
+    Examples:
+        adobe aep schema template show customer-profile
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    template = manager.get_template(name)
+    
+    if not template:
+        console.print(f"[red]Error: Template '{name}' not found[/red]")
+        raise typer.Exit(1)
+    
+    # Display template info
+    panel_lines = [
+        f"[bold]Title:[/bold] {template.title}",
+        f"[bold]Domain:[/bold] {template.domain}",
+        f"[bold]Description:[/bold] {template.description}",
+        f"[bold]XDM Class:[/bold] {template.xdm_class}",
+        f"[bold]Version:[/bold] {template.version}",
+        f"[bold]Created:[/bold] {template.created_at}",
+    ]
+    
+    if template.tags:
+        panel_lines.append(f"[bold]Tags:[/bold] {', '.join(template.tags)}")
+    
+    console.print(Panel("\n".join(panel_lines), title=f"Template: {name}", border_style="cyan"))
+    
+    # Display sample fields
+    if template.sample_fields:
+        console.print("\n[bold cyan]Sample Fields:[/bold cyan]")
+        
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Field Name", style="cyan")
+        table.add_column("Type", style="yellow")
+        table.add_column("Description", style="white")
+        
+        for field in template.sample_fields:
+            table.add_row(
+                field.get("name", ""),
+                field.get("type", ""),
+                field.get("description", ""),
+            )
+        
+        console.print(table)
+
+
+@template_app.command("save")
+def save_template(
+    name: str = typer.Argument(..., help="Template name"),
+    from_file: Optional[Path] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to schema JSON file to save as template",
+    ),
+    title: Optional[str] = typer.Option(None, "--title", help="Template title"),
+    description: Optional[str] = typer.Option(None, "--description", "-d", help="Template description"),
+    domain: Optional[str] = typer.Option(None, "--domain", help="Template domain (e.g., 'customer', 'product')"),
+) -> None:
+    """Save a schema as a template for reuse.
+    
+    Examples:
+        adobe aep schema template save my-template --from-file schema.json --title "My Custom Template"
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    from adobe_experience.schema.models import SchemaTemplate
+    
+    if not from_file:
+        console.print("[red]Error: --from-file is required[/red]")
+        raise typer.Exit(1)
+    
+    if not from_file.exists():
+        console.print(f"[red]Error: File not found: {from_file}[/red]")
+        raise typer.Exit(1)
+    
+    manager = TemplateManager()
+    
+    # Check if template already exists
+    if manager.template_exists(name):
+        if not Confirm.ask(f"[yellow]Template '{name}' already exists. Overwrite?[/yellow]"):
+            console.print("[dim]Cancelled[/dim]")
+            return
+    
+    try:
+        # Load schema from file
+        with open(from_file, "r", encoding="utf-8") as f:
+            schema_data = json.load(f)
+        
+        # Extract fields from schema
+        sample_fields = []
+        if "properties" in schema_data:
+            for field_name, field_info in schema_data["properties"].items():
+                sample_fields.append({
+                    "name": field_name,
+                    "type": field_info.get("type", "string"),
+                    "description": field_info.get("description", ""),
+                })
+        
+        # Create template
+        template = SchemaTemplate(
+            name=name,
+            title=title or name.replace("-", " ").title(),
+            description=description or f"Custom template: {name}",
+            domain=domain or "custom",
+            sample_fields=sample_fields,
+            tags=["custom"],
+            xdm_class=schema_data.get("allOf", [{}])[0].get("$ref", "https://ns.adobe.com/xdm/context/profile"),
+        )
+        
+        # Save template
+        manager.save_template(template)
+        console.print(f"[green]✓[/green] Template '{name}' saved successfully")
+        console.print(f"[dim]Location: {manager.templates_dir / f'{name}.json'}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error saving template: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@template_app.command("delete")
+def delete_template(
+    name: str = typer.Argument(..., help="Template name"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+) -> None:
+    """Delete a custom template.
+    
+    Examples:
+        adobe aep schema template delete my-template
+        adobe aep schema template delete my-template --yes
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    
+    # Check if template exists
+    if not manager.template_exists(name):
+        console.print(f"[red]Error: Template '{name}' not found[/red]")
+        raise typer.Exit(1)
+    
+    # Prevent deletion of built-in templates
+    builtin_templates = ["customer-profile", "product-catalog", "order-event"]
+    if name in builtin_templates:
+        console.print(f"[red]Error: Cannot delete built-in template '{name}'[/red]")
+        raise typer.Exit(1)
+    
+    # Confirm deletion
+    if not yes:
+        if not Confirm.ask(f"[yellow]Delete template '{name}'?[/yellow]"):
+            console.print("[dim]Cancelled[/dim]")
+            return
+    
+    try:
+        manager.delete_template(name)
+        console.print(f"[green]✓[/green] Template '{name}' deleted")
+    except Exception as e:
+        console.print(f"[red]Error deleting template: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Register template commands
+schema_app.add_typer(template_app, name="template")
 
 
 __all__ = ["schema_app"]
