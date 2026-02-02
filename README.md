@@ -1,8 +1,8 @@
 # Adobe Experience Cloud CLI
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/yourusername/adobe-code)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/neep305/adobe-code-cli)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)]()
 
 Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analytics, and more.
@@ -16,7 +16,9 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 - 🔧 **Unified Interface**: Single CLI for all Adobe Experience Cloud products
 - 🧠 **AI-Driven**: Uses LLM inference (OpenAI/Anthropic) for schema generation and validation
 - 📊 **XDM Schema Management**: Automatically generate XDM-compliant schemas from sample data
-- 🔑 **Secure Key Management**: Separate AI API key storage with `adobe ai` commands
+- � **Dataset Management**: Create, list, and manage AEP datasets with full lifecycle control
+- 🔄 **Batch Ingestion**: Create batches, monitor status, and manage data ingestion workflows
+- �🔑 **Secure Key Management**: Separate AI API key storage with `adobe ai` commands
 - 🔄 **Backward Compatible**: Legacy `adobe-aep` commands still supported (with deprecation warnings)
 - 🎯 **Multi-Product Ready**: Designed for AEP, Target, Analytics integration
 - 🛡️ **Type-Safe**: Built with Pydantic for robust data validation
@@ -24,15 +26,47 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 
 ## 📦 Installation
 
+### From Git Repository (Recommended)
+
+Install directly from GitHub - no need to clone the repository:
+
+```bash
+# Install latest version from main branch
+pip install git+https://github.com/neep305/adobe-code-cli.git
+
+# Install specific release version
+pip install git+https://github.com/neep305/adobe-code-cli.git@v0.2.0
+
+# With optional data processing dependencies
+pip install "adobe-experience-cloud-cli[data] @ git+https://github.com/neep305/adobe-code-cli.git"
+```
+
 ### Development Installation
+
+For contributors or local development:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/adobe-code.git
-cd adobe-code
+git clone https://github.com/neep305/adobe-code-cli.git
+cd adobe-code-cli
 
-# Install in editable mode
-pip install -e .
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
+
+### Requirements
+
+- **Python**: 3.10 or higher
+- **Git**: Required for repository installation
+- **Network**: Internet access for Adobe API calls
+
+### Upgrading
+
+Update to the latest version:
+
+```bash
+pip install --upgrade git+https://github.com/neep305/adobe-code-cli.git
+```
 🚀 Quick Start
 
 ### 1. Configure Credentials
@@ -94,6 +128,18 @@ adobe aep info            # Show AEP information
 adobe aep schema create   # Create XDM schema from sample data
 adobe aep schema list     # List schemas from AEP
 adobe aep schema get      # Get schema details
+
+# Dataset Management
+adobe aep dataset list    # List datasets
+adobe aep dataset create  # Create new dataset
+adobe aep dataset get     # Get dataset details
+adobe aep dataset enable-profile  # Enable for Profile
+
+# Batch Management
+adobe aep dataset create-batch    # Create batch for ingestion
+adobe aep dataset batch-status    # Check batch status
+adobe aep dataset list-batches    # List batches
+adobe aep dataset complete-batch  # Complete batch
 ```
 
 ### AI Provider Management

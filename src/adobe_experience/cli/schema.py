@@ -11,9 +11,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.prompt import Confirm, Prompt, IntPrompt
 
 console = Console()
 schema_app = typer.Typer(help="XDM schema management commands")
+template_app = typer.Typer(help="Schema template management")
 
 
 def _get_workspace_output_dir() -> tuple[Path, Path]:
@@ -84,6 +86,12 @@ def create_schema(
         "-d",
         help="Schema description",
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactive mode - create schema with AI guidance (no file required)",
+    ),
     use_ai: bool = typer.Option(
         False,
         "--use-ai",
@@ -106,14 +114,20 @@ def create_schema(
         help="Save schema to file",
     ),
 ) -> None:
-    """Create XDM schema from sample data.
+    """Create XDM schema from sample data or interactively with AI.
 
     Examples:
         adobe aep schema create --name "Customer Events" --from-sample data.json
         adobe aep schema create -n "Customer Profile" -f customers.json --use-ai --upload
+        adobe aep schema create -n "Loyalty Program" --interactive
     """
+    # Interactive mode - no file required
+    if interactive:
+        _create_schema_interactive(name, description, upload, class_id, output)
+        return
+    
     if not from_sample:
-        console.print("[red]Error: --from-sample is required[/red]")
+        console.print("[red]Error: --from-sample is required (or use --interactive)[/red]")
         raise typer.Exit(1)
 
     if not from_sample.exists():
@@ -197,6 +211,24 @@ def create_schema(
 
         # Upload to AEP
         if upload:
+            # Check if in dry-run mode
+            from adobe_experience.core.config import load_onboarding_state, TutorialMode
+            state = load_onboarding_state()
+            
+            if state and state.mode == TutorialMode.DRY_RUN:
+                console.print("\n[bold yellow]🎓 Dry-Run Mode: Simulating schema upload[/bold yellow]")
+                console.print(Panel(
+                    f"[bold]Simulated Upload[/bold]\n\n"
+                    f"Would upload schema to AEP:\n"
+                    f"  • Schema Name: {name}\n"
+                    f"  • Fields: {len(schema_json.get('properties', {}))} properties\n"
+                    f"  • Class: {schema_json.get('allOf', [{}])[0].get('$ref', 'N/A')}\n\n"
+                    f"[dim]In online mode, this would create a real schema in your AEP environment.[/dim]",
+                    border_style="yellow",
+                ))
+                console.print(f"[green]✓[/green] Dry-run completed successfully!")
+                return
+            
             config = get_config()
 
             console.print("\n[bold cyan]Uploading schema to AEP...[/bold cyan]")
@@ -1203,6 +1235,472 @@ def _format_analysis_markdown(analysis, scan_result, dataset_name: str) -> str:
     lines.append("")
     
     return "\n".join(lines)
+
+
+# ===========================
+# Interactive Schema Creation
+# ===========================
+
+def _create_schema_interactive(
+    name: str,
+    description: Optional[str],
+    upload: bool,
+    class_id: Optional[str],
+    output: Optional[Path],
+) -> None:
+    """Interactive schema creation workflow with template selection and AI guidance."""
+    from adobe_experience.schema.templates import TemplateManager
+    from adobe_experience.agent.inference import AIInferenceEngine
+    from adobe_experience.core.config import get_config
+    from adobe_experience.schema.xdm import XDMSchemaAnalyzer, XDMSchemaRegistry
+    from adobe_experience.aep.client import AEPClient
+    
+    console.print(Panel.fit(
+        "[bold cyan]Interactive Schema Creation[/bold cyan]\n\n"
+        "This wizard will guide you through creating an XDM schema.\n"
+        "You can start from a template or create a custom schema with AI assistance.",
+        border_style="cyan"
+    ))
+    
+    # Step 1: Template selection
+    console.print("\n[bold]Step 1: Choose a starting point[/bold]")
+    
+    manager = TemplateManager()
+    templates = manager.list_templates()
+    
+    # Display template options
+    table = Table(show_header=True, header_style="bold cyan", title="Available Templates")
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="white")
+    table.add_column("Fields", justify="right", style="green")
+    
+    for idx, template in enumerate(templates, 1):
+        table.add_row(
+            str(idx),
+            template.title,
+            template.description[:60] + "..." if len(template.description) > 60 else template.description,
+            str(len(template.sample_fields)),
+        )
+    
+    table.add_row(
+        str(len(templates) + 1),
+        "[yellow]Custom Schema[/yellow]",
+        "Start from scratch with AI guidance",
+        "-",
+    )
+    
+    console.print(table)
+    
+    # Get template choice
+    template_choice = IntPrompt.ask(
+        "\nSelect a template",
+        default=1,
+        show_default=True,
+    )
+    
+    selected_template = None
+    if 1 <= template_choice <= len(templates):
+        selected_template = templates[template_choice - 1]
+        console.print(f"\n[green]✓[/green] Using template: [cyan]{selected_template.title}[/cyan]")
+        
+        # Generate schema from template
+        sample_data = []
+        for field in selected_template.sample_fields:
+            # Create a sample record with default values
+            sample_record = {}
+            for f in selected_template.sample_fields:
+                field_name = f.get("name", "")
+                field_type = f.get("type", "string")
+                
+                # Generate sample value based on type
+                if field_type == "string":
+                    sample_record[field_name] = f"sample_{field_name}"
+                elif field_type == "integer":
+                    sample_record[field_name] = 123
+                elif field_type == "number":
+                    sample_record[field_name] = 123.45
+                elif field_type == "boolean":
+                    sample_record[field_name] = True
+                elif field_type == "array":
+                    sample_record[field_name] = ["item1", "item2"]
+                elif field_type == "object":
+                    sample_record[field_name] = {"key": "value"}
+            
+            sample_data.append(sample_record)
+            break  # Only need one sample record
+        
+        # Generate schema
+        config = get_config()
+        with console.status("[bold blue]Generating schema from template..."):
+            schema = XDMSchemaAnalyzer.from_sample_data(
+                sample_data,
+                name,
+                description or selected_template.description,
+                tenant_id=config.aep_tenant_id,
+                class_id=class_id or selected_template.xdm_class,
+            )
+        
+    else:
+        # Custom schema with AI guidance
+        console.print("\n[yellow]✓[/yellow] Creating custom schema with AI assistance")
+        
+        # Step 2: Gather information through questions
+        console.print("\n[bold]Step 2: Schema Information[/bold]")
+        
+        if not description:
+            description = Prompt.ask("What is this schema for? (brief description)")
+        
+        schema_domain = Prompt.ask(
+            "What domain does this schema belong to?",
+            choices=["customer", "product", "event", "campaign", "other"],
+            default="other"
+        )
+        
+        console.print("\n[bold]Step 3: Define Fields[/bold]")
+        console.print("[dim]Enter field names one by one. Press Enter without typing to finish.[/dim]\n")
+        
+        fields = []
+        while True:
+            field_name = Prompt.ask(
+                f"Field name (or press Enter to finish)",
+                default=""
+            )
+            
+            if not field_name:
+                break
+            
+            field_type = Prompt.ask(
+                f"  Type for '{field_name}'",
+                choices=["string", "integer", "number", "boolean", "date", "datetime", "array", "object"],
+                default="string"
+            )
+            
+            field_desc = Prompt.ask(
+                f"  Description for '{field_name}'",
+                default=f"{field_name} field"
+            )
+            
+            field_required = Confirm.ask(
+                f"  Is '{field_name}' required?",
+                default=False
+            )
+            
+            fields.append({
+                "name": field_name,
+                "type": field_type,
+                "description": field_desc,
+                "required": field_required,
+            })
+            
+            console.print(f"[green]✓[/green] Added field: {field_name}")
+        
+        if not fields:
+            console.print("[yellow]No fields defined. Using AI to suggest fields...[/yellow]")
+            
+            # Use AI to suggest fields
+            engine = AIInferenceEngine()
+            with console.status("[bold blue]AI is analyzing your requirements..."):
+                suggested_fields = asyncio.run(
+                    engine.suggest_schema_fields(
+                        schema_name=name,
+                        schema_description=description,
+                        domain=schema_domain,
+                    )
+                )
+            
+            if suggested_fields:
+                console.print("\n[bold cyan]AI Suggested Fields:[/bold cyan]")
+                for field in suggested_fields:
+                    console.print(f"  • {field['name']} ({field['type']}): {field.get('description', '')}")
+                
+                if Confirm.ask("\nUse these suggested fields?", default=True):
+                    fields = suggested_fields
+        
+        # Generate sample data from fields
+        sample_data = [{}]
+        for field in fields:
+            field_name = field["name"]
+            field_type = field.get("type", "string")
+            
+            if field_type == "string":
+                sample_data[0][field_name] = f"sample_{field_name}"
+            elif field_type in ["integer", "number"]:
+                sample_data[0][field_name] = 123
+            elif field_type == "boolean":
+                sample_data[0][field_name] = True
+            elif field_type in ["date", "datetime"]:
+                sample_data[0][field_name] = "2024-01-01T00:00:00Z"
+            elif field_type == "array":
+                sample_data[0][field_name] = ["item1"]
+            elif field_type == "object":
+                sample_data[0][field_name] = {"key": "value"}
+        
+        # Generate schema
+        config = get_config()
+        with console.status("[bold blue]Generating schema..."):
+            schema = XDMSchemaAnalyzer.from_sample_data(
+                sample_data,
+                name,
+                description or f"Custom schema for {schema_domain}",
+                tenant_id=config.aep_tenant_id,
+                class_id=class_id or "https://ns.adobe.com/xdm/context/profile",
+            )
+    
+    # Display generated schema
+    console.print(f"\n[green]✓[/green] Schema '{name}' generated successfully")
+    
+    schema_json = schema.model_dump(exclude_none=True, by_alias=True)
+    syntax = Syntax(
+        json.dumps(schema_json, indent=2),
+        "json",
+        theme="monokai",
+        line_numbers=True,
+    )
+    console.print("\n[bold]Generated Schema:[/bold]")
+    console.print(syntax)
+    
+    # Save to file
+    if output:
+        output.write_text(json.dumps(schema_json, indent=2), encoding="utf-8")
+        console.print(f"\n[green]✓[/green] Schema saved to {output}")
+    
+    # Upload to AEP
+    if upload:
+        console.print("\n[bold]Uploading schema to Adobe Experience Platform...[/bold]")
+        
+        try:
+            config = get_config()
+            client = AEPClient(
+                client_id=config.aep_client_id,
+                client_secret=config.aep_client_secret,
+                org_id=config.aep_org_id,
+                tech_account_id=config.aep_tech_account_id,
+                sandbox_name=config.aep_sandbox_name,
+            )
+            
+            registry = XDMSchemaRegistry(client)
+            result = asyncio.run(registry.create_schema(schema))
+            
+            console.print(f"[green]✓[/green] Schema uploaded successfully")
+            console.print(f"[dim]Schema ID: {result.get('$id', 'N/A')}[/dim]")
+            
+        except Exception as e:
+            console.print(f"[red]Upload failed: {e}[/red]")
+            raise typer.Exit(1)
+
+
+# ===========================
+# Template Management Commands
+# ===========================
+
+@template_app.command("list")
+def list_templates() -> None:
+    """List all available schema templates.
+    
+    Examples:
+        adobe aep schema template list
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    templates = manager.list_templates()
+    
+    if not templates:
+        console.print("[yellow]No templates found[/yellow]")
+        return
+    
+    # Create table
+    table = Table(title="Schema Templates", show_header=True, header_style="bold cyan")
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("Title", style="white")
+    table.add_column("Domain", style="magenta")
+    table.add_column("Fields", justify="right", style="green")
+    table.add_column("Source", style="yellow")
+    
+    for template in templates:
+        source = "Built-in" if template.name in ["customer-profile", "product-catalog", "order-event"] else "Custom"
+        field_count = str(len(template.sample_fields))
+        
+        table.add_row(
+            template.name,
+            template.title,
+            template.domain,
+            field_count,
+            source,
+        )
+    
+    console.print(table)
+    console.print(f"\n[dim]Total: {len(templates)} templates[/dim]")
+
+
+@template_app.command("show")
+def show_template(
+    name: str = typer.Argument(..., help="Template name"),
+) -> None:
+    """Show detailed information about a template.
+    
+    Examples:
+        adobe aep schema template show customer-profile
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    template = manager.get_template(name)
+    
+    if not template:
+        console.print(f"[red]Error: Template '{name}' not found[/red]")
+        raise typer.Exit(1)
+    
+    # Display template info
+    panel_lines = [
+        f"[bold]Title:[/bold] {template.title}",
+        f"[bold]Domain:[/bold] {template.domain}",
+        f"[bold]Description:[/bold] {template.description}",
+        f"[bold]XDM Class:[/bold] {template.xdm_class}",
+        f"[bold]Version:[/bold] {template.version}",
+        f"[bold]Created:[/bold] {template.created_at}",
+    ]
+    
+    if template.tags:
+        panel_lines.append(f"[bold]Tags:[/bold] {', '.join(template.tags)}")
+    
+    console.print(Panel("\n".join(panel_lines), title=f"Template: {name}", border_style="cyan"))
+    
+    # Display sample fields
+    if template.sample_fields:
+        console.print("\n[bold cyan]Sample Fields:[/bold cyan]")
+        
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Field Name", style="cyan")
+        table.add_column("Type", style="yellow")
+        table.add_column("Description", style="white")
+        
+        for field in template.sample_fields:
+            table.add_row(
+                field.get("name", ""),
+                field.get("type", ""),
+                field.get("description", ""),
+            )
+        
+        console.print(table)
+
+
+@template_app.command("save")
+def save_template(
+    name: str = typer.Argument(..., help="Template name"),
+    from_file: Optional[Path] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to schema JSON file to save as template",
+    ),
+    title: Optional[str] = typer.Option(None, "--title", help="Template title"),
+    description: Optional[str] = typer.Option(None, "--description", "-d", help="Template description"),
+    domain: Optional[str] = typer.Option(None, "--domain", help="Template domain (e.g., 'customer', 'product')"),
+) -> None:
+    """Save a schema as a template for reuse.
+    
+    Examples:
+        adobe aep schema template save my-template --from-file schema.json --title "My Custom Template"
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    from adobe_experience.schema.models import SchemaTemplate
+    
+    if not from_file:
+        console.print("[red]Error: --from-file is required[/red]")
+        raise typer.Exit(1)
+    
+    if not from_file.exists():
+        console.print(f"[red]Error: File not found: {from_file}[/red]")
+        raise typer.Exit(1)
+    
+    manager = TemplateManager()
+    
+    # Check if template already exists
+    if manager.template_exists(name):
+        if not Confirm.ask(f"[yellow]Template '{name}' already exists. Overwrite?[/yellow]"):
+            console.print("[dim]Cancelled[/dim]")
+            return
+    
+    try:
+        # Load schema from file
+        with open(from_file, "r", encoding="utf-8") as f:
+            schema_data = json.load(f)
+        
+        # Extract fields from schema
+        sample_fields = []
+        if "properties" in schema_data:
+            for field_name, field_info in schema_data["properties"].items():
+                sample_fields.append({
+                    "name": field_name,
+                    "type": field_info.get("type", "string"),
+                    "description": field_info.get("description", ""),
+                })
+        
+        # Create template
+        template = SchemaTemplate(
+            name=name,
+            title=title or name.replace("-", " ").title(),
+            description=description or f"Custom template: {name}",
+            domain=domain or "custom",
+            sample_fields=sample_fields,
+            tags=["custom"],
+            xdm_class=schema_data.get("allOf", [{}])[0].get("$ref", "https://ns.adobe.com/xdm/context/profile"),
+        )
+        
+        # Save template
+        manager.save_template(template)
+        console.print(f"[green]✓[/green] Template '{name}' saved successfully")
+        console.print(f"[dim]Location: {manager.templates_dir / f'{name}.json'}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[red]Error saving template: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@template_app.command("delete")
+def delete_template(
+    name: str = typer.Argument(..., help="Template name"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+) -> None:
+    """Delete a custom template.
+    
+    Examples:
+        adobe aep schema template delete my-template
+        adobe aep schema template delete my-template --yes
+    """
+    from adobe_experience.schema.templates import TemplateManager
+    
+    manager = TemplateManager()
+    
+    # Check if template exists
+    if not manager.template_exists(name):
+        console.print(f"[red]Error: Template '{name}' not found[/red]")
+        raise typer.Exit(1)
+    
+    # Prevent deletion of built-in templates
+    builtin_templates = ["customer-profile", "product-catalog", "order-event"]
+    if name in builtin_templates:
+        console.print(f"[red]Error: Cannot delete built-in template '{name}'[/red]")
+        raise typer.Exit(1)
+    
+    # Confirm deletion
+    if not yes:
+        if not Confirm.ask(f"[yellow]Delete template '{name}'?[/yellow]"):
+            console.print("[dim]Cancelled[/dim]")
+            return
+    
+    try:
+        manager.delete_template(name)
+        console.print(f"[green]✓[/green] Template '{name}' deleted")
+    except Exception as e:
+        console.print(f"[red]Error deleting template: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Register template commands
+schema_app.add_typer(template_app, name="template")
 
 
 __all__ = ["schema_app"]

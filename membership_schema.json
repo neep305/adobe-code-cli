@@ -1,0 +1,61 @@
+{
+  "$id": "https://ns.adobe.com/acssandboxgdctwo/schemas/membership",
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "title": "Membership",
+  "description": "Template for membership data",
+  "type": "object",
+  "version": "1.0",
+  "allOf": [
+    {
+      "$ref": "https://ns.adobe.com/xdm/context/profile"
+    }
+  ],
+  "properties": {
+    "_acssandboxgdctwo": {
+      "title": "Membership Custom Fields",
+      "description": "Custom tenant-specific fields",
+      "type": "object",
+      "properties": {
+        "endDate": {
+          "title": "Enddate",
+          "description": "Field: endDate",
+          "type": "string",
+          "format": "date"
+        },
+        "benefits": {
+          "title": "Benefits",
+          "description": "Field: benefits",
+          "type": "array",
+          "items": {
+            "title": "Item",
+            "description": "Array item",
+            "type": "string"
+          }
+        },
+        "status": {
+          "title": "Status",
+          "description": "Field: status",
+          "type": "string"
+        },
+        "membershipType": {
+          "title": "Membershiptype",
+          "description": "Field: membershipType",
+          "type": "string"
+        },
+        "memberId": {
+          "title": "Memberid",
+          "description": "Field: memberId",
+          "type": "string"
+        },
+        "startDate": {
+          "title": "Startdate",
+          "description": "Field: startDate",
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  "meta:class": "https://ns.adobe.com/xdm/context/profile",
+  "meta:abstract": false
+}

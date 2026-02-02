@@ -1,5 +1,6 @@
 """XDM Schema models and types."""
 
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -139,5 +140,21 @@ class SchemaRegistryResponse(BaseModel):
     version: str
     created: Optional[str] = Field(None, alias="meta:created")
     updated: Optional[str] = Field(None, alias="meta:updated")
+
+    model_config = {"populate_by_name": True}
+
+
+class SchemaTemplate(BaseModel):
+    """Schema template for quick schema creation."""
+
+    name: str = Field(..., description="Template name (unique identifier)")
+    title: str = Field(..., description="Display title")
+    description: str = Field(..., description="Template description")
+    domain: str = Field(..., description="Business domain (e.g., customer, product, event)")
+    sample_fields: List[Dict[str, Any]] = Field(..., description="Sample field definitions")
+    tags: List[str] = Field(default_factory=list, description="Tags for categorization")
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
+    version: str = Field(default="1.0.0", description="Template version")
+    xdm_class: Optional[str] = Field(None, description="XDM class ID")
 
     model_config = {"populate_by_name": True}

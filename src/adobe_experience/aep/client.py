@@ -191,6 +191,7 @@ class AEPClient:
         self,
         path: str,
         json: Optional[Dict[str, Any]] = None,
+        content: Optional[bytes] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make PUT request.
@@ -198,12 +199,13 @@ class AEPClient:
         Args:
             path: API path.
             json: JSON body.
+            content: Binary content (for file uploads).
             headers: Additional headers.
 
         Returns:
             Response JSON.
         """
-        return await self._request_with_retry("PUT", path, json=json, headers=headers)
+        return await self._request_with_retry("PUT", path, json=json, content=content, headers=headers)
 
     async def delete(
         self,
