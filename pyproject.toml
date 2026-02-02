@@ -13,13 +13,6 @@ authors = [
     {name = "Adobe Experience Cloud CLI Team"}
 ]
 keywords = ["adobe", "aep", "experience-platform", "target", "analytics", "cli", "ai-agent"]
-
-[project.urls]
-Homepage = "https://github.com/neep305/adobe-code-cli"
-Repository = "https://github.com/neep305/adobe-code-cli"
-Documentation = "https://github.com/neep305/adobe-code-cli/blob/main/README.md"
-Issues = "https://github.com/neep305/adobe-code-cli/issues"
-
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -39,6 +32,12 @@ dependencies = [
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/neep305/adobe-code-cli"
+Repository = "https://github.com/neep305/adobe-code-cli"
+Documentation = "https://github.com/neep305/adobe-code-cli/blob/main/README.md"
+Issues = "https://github.com/neep305/adobe-code-cli/issues"
 
 [project.optional-dependencies]
 dev = [
