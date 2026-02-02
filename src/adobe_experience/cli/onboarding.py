@@ -444,6 +444,181 @@ def show_status() -> None:
     console.print()
 
 
+@onboarding_app.command("next")
+def next_step(
+    mark_complete: bool = typer.Option(
+        True,
+        "--complete/--no-complete",
+        help="Mark current step as completed before moving to next",
+    )
+) -> None:
+    """Move to the next tutorial step.
+    
+    By default, marks the current step as completed. Use --no-complete to skip without completing.
+
+    Examples:
+        adobe onboarding next
+        adobe onboarding next --no-complete
+    """
+    state = load_onboarding_state()
+
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]adobe onboarding start[/cyan]")
+        return
+
+    # Get tutorial steps
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    total_steps = len(steps)
+
+    if state.current_step == 0:
+        console.print("[yellow]Tutorial not started yet[/yellow]")
+        console.print("Use: [cyan]adobe onboarding resume[/cyan]")
+        return
+
+    if state.current_step > total_steps:
+        console.print("[green]✓ Tutorial already completed![/green]")
+        console.print("\nStart a new tutorial with: [cyan]adobe onboarding reset[/cyan]")
+        return
+
+    # Mark current step as completed
+    if mark_complete and state.current_step not in state.completed_steps:
+        state.completed_steps.append(state.current_step)
+        console.print(f"[green]✓ Step {state.current_step} marked as completed[/green]")
+    elif not mark_complete and state.current_step not in state.skipped_steps:
+        state.skipped_steps.append(state.current_step)
+        console.print(f"[yellow]⚠ Step {state.current_step} marked as skipped[/yellow]")
+
+    # Move to next step
+    state.current_step += 1
+
+    if state.current_step > total_steps:
+        console.print("\n[bold green]🎉 Congratulations! Tutorial completed![/bold green]")
+        
+        # Add completion milestone
+        from adobe_experience.core.config import TutorialMilestone
+        if TutorialMilestone.FIRST_SCHEMA not in state.milestones_achieved:
+            state.milestones_achieved.append(TutorialMilestone.FIRST_SCHEMA)
+        
+        save_onboarding_state(state)
+        return
+
+    # Save state
+    save_onboarding_state(state)
+
+    # Show next step info
+    next_step_info = steps[state.current_step - 1]
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    desc_key = f"description_{state.language}" if state.language in ["en", "ko"] else "description_en"
+    
+    step_name = next_step_info.get(name_key, next_step_info["name_en"])
+    step_desc = next_step_info.get(desc_key, next_step_info["description_en"])
+    step_cmd = next_step_info["command"]
+
+    console.print()
+    console.print(Panel(
+        f"[bold cyan]{step_name}[/bold cyan]\n\n"
+        f"{step_desc}\n\n"
+        f"[cyan]→ {step_cmd}[/cyan]",
+        title=f"📍 Step {state.current_step}/{total_steps}",
+        border_style="cyan",
+    ))
+
+
+@onboarding_app.command("skip")
+def skip_step() -> None:
+    """Skip the current tutorial step without marking it as completed.
+
+    Examples:
+        adobe onboarding skip
+    """
+    state = load_onboarding_state()
+
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]adobe onboarding start[/cyan]")
+        return
+
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    total_steps = len(steps)
+
+    if state.current_step == 0:
+        console.print("[yellow]Tutorial not started yet[/yellow]")
+        console.print("Use: [cyan]adobe onboarding resume[/cyan]")
+        return
+
+    if state.current_step > total_steps:
+        console.print("[green]✓ Tutorial already completed![/green]")
+        return
+
+    # Mark as skipped
+    if state.current_step not in state.skipped_steps:
+        state.skipped_steps.append(state.current_step)
+    
+    # Remove from completed if it was there
+    if state.current_step in state.completed_steps:
+        state.completed_steps.remove(state.current_step)
+
+    console.print(f"[yellow]⚠ Step {state.current_step} skipped[/yellow]")
+
+    # Move to next step
+    state.current_step += 1
+
+    if state.current_step > total_steps:
+        console.print("\n[bold green]🎉 Tutorial completed (with skipped steps)[/bold green]")
+        save_onboarding_state(state)
+        return
+
+    save_onboarding_state(state)
+
+    # Show next step
+    next_step_info = steps[state.current_step - 1]
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    step_name = next_step_info.get(name_key, next_step_info["name_en"])
+    
+    console.print(f"\n[cyan]→ Moving to: {step_name}[/cyan]")
+    console.print("Use [cyan]adobe onboarding status[/cyan] to see current progress")
+
+
+@onboarding_app.command("back")
+def back_step() -> None:
+    """Go back to the previous tutorial step.
+
+    Examples:
+        adobe onboarding back
+    """
+    state = load_onboarding_state()
+
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]adobe onboarding start[/cyan]")
+        return
+
+    if state.current_step <= 1:
+        console.print("[yellow]Already at the first step[/yellow]")
+        return
+
+    # Move back
+    state.current_step -= 1
+
+    # Remove from completed/skipped if going back
+    if state.current_step in state.completed_steps:
+        state.completed_steps.remove(state.current_step)
+    if state.current_step in state.skipped_steps:
+        state.skipped_steps.remove(state.current_step)
+
+    save_onboarding_state(state)
+
+    # Show current step
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    step_info = steps[state.current_step - 1]
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    step_name = step_info.get(name_key, step_info["name_en"])
+
+    console.print(f"[cyan]← Back to: {step_name}[/cyan]")
+    console.print("Use [cyan]adobe onboarding status[/cyan] to see current progress")
+
+
 @onboarding_app.command("resume")
 def resume_tutorial() -> None:
     """Resume onboarding tutorial from last checkpoint.
