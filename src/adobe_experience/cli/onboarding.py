@@ -1,5 +1,6 @@
 """Onboarding tutorial CLI commands."""
 
+import asyncio
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -292,6 +293,90 @@ def reset_progress(
         state_file.unlink()
 
     console.print("[green]✓ Onboarding progress reset[/green]")
+
+
+@onboarding_app.command("ask")
+def ask_ai_tutor(
+    question: str = typer.Argument(..., help="Your question for the AI tutor"),
+) -> None:
+    """Ask the AI tutor for help with the tutorial.
+
+    The AI tutor provides context-aware assistance based on your current
+    tutorial progress, recent errors, and specific questions.
+
+    Examples:
+        adobe onboarding ask "How do I authenticate?"
+        adobe onboarding ask "What is XDM schema?"
+        adobe onboarding ask "I'm getting an authentication error, what should I do?"
+    """
+    from adobe_experience.agent.inference import AIInferenceEngine
+
+    # Load current state
+    state = load_onboarding_state()
+
+    if not state:
+        console.print("[yellow]No tutorial in progress. Start one with:[/yellow]")
+        console.print("  [cyan]adobe onboarding start[/cyan]")
+        console.print()
+        console.print("[dim]Answering your question anyway...[/dim]\n")
+        state = OnboardingState(
+            scenario=TutorialScenario.BASIC,
+            language="en",
+        )
+
+    # Get i18n instance for language
+    i18n = get_i18n()
+    if state.language:
+        i18n.change_language(state.language)
+
+    # Display question
+    console.print(Panel(
+        f"[bold cyan]{t('ai_tutor.ask', state.language)}[/bold cyan]\n\n{question}",
+        border_style="cyan",
+    ))
+
+    # Prepare context
+    context = {
+        "scenario": state.scenario.value if state.scenario else "basic",
+        "current_step": state.current_step or 0,
+        "completed_steps": state.completed_steps or [],
+        "language": state.language or "en",
+        "milestones": [m.value for m in state.milestones_achieved] if state.milestones_achieved else [],
+    }
+
+    # Call AI tutor
+    try:
+        engine = AIInferenceEngine()
+
+        with console.status(f"[bold blue]{t('ai_tutor.thinking', state.language)}[/bold blue]"):
+            answer = asyncio.run(
+                engine.answer_tutorial_question(
+                    question=question,
+                    context=context,
+                    language=state.language,
+                )
+            )
+
+        # Display answer
+        console.print()
+        console.print(Panel(
+            answer,
+            title=f"[bold green]{t('ai_tutor.answer', state.language)}[/bold green]",
+            border_style="green",
+        ))
+
+    except ValueError as e:
+        if "No AI provider configured" in str(e):
+            console.print(f"\n[red]{t('errors.auth_failed', state.language)}[/red]")
+            console.print("[yellow]AI tutor requires an API key. Configure one with:[/yellow]")
+            console.print("  [cyan]adobe ai set-key anthropic[/cyan]")
+            console.print("  [cyan]adobe ai set-key openai[/cyan]")
+        else:
+            console.print(f"\n[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        raise typer.Exit(1)
 
 
 __all__ = ["onboarding_app"]

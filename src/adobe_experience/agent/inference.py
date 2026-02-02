@@ -854,3 +854,114 @@ Return ONLY the JSON array, no additional text."""
                 {"name": "createdAt", "type": "datetime", "description": "Creation timestamp", "required": False},
             ]
 
+    async def answer_tutorial_question(
+        self,
+        question: str,
+        context: Dict[str, Any],
+        language: str = "en",
+    ) -> str:
+        """Answer a tutorial-related question with context awareness.
+
+        Args:
+            question: User's question
+            context: Current tutorial context (scenario, step, progress)
+            language: Response language (en, ko)
+
+        Returns:
+            AI-generated answer
+        """
+        if not self.active_client:
+            raise ValueError("No AI provider configured")
+
+        # Build context-aware prompt
+        scenario_info = {
+            "basic": "Basic tutorial covering essential 5 steps (auth, AI config, schema, upload, dataset)",
+            "data-engineer": "Data Engineer tutorial focused on batch optimization and large-scale processing",
+            "marketer": "Marketer tutorial covering Profile, Identity, and Segmentation",
+            "custom": "Custom tutorial path",
+        }
+
+        step_descriptions = {
+            "auth": "Authentication Setup - Configure Adobe Experience Platform credentials",
+            "ai_provider": "AI Provider Configuration - Set up Anthropic or OpenAI API key",
+            "schema": "Schema Creation - Design and create XDM schemas",
+            "upload_schema": "Upload Schema to AEP - Register schema in Adobe Experience Platform",
+            "dataset": "Create Dataset - Set up datasets linked to schemas",
+            "ingest": "Data Ingestion - Upload data to Adobe Experience Platform",
+        }
+
+        language_instructions = {
+            "ko": "Please respond in Korean (한국어). Be clear and helpful.",
+            "en": "Please respond in English. Be clear and helpful.",
+        }
+
+        current_step_desc = step_descriptions.get(
+            context.get("current_step", ""),
+            "Not started yet"
+        )
+
+        prompt = f"""You are an AI tutor helping users learn Adobe Experience Platform CLI.
+
+Context:
+- Tutorial Scenario: {scenario_info.get(context.get('scenario', 'basic'), 'Basic tutorial')}
+- Current Step: {context.get('current_step', 'Not started')} - {current_step_desc}
+- Completed Steps: {', '.join(context.get('completed_steps', [])) or 'None'}
+- Language: {language}
+- Milestones Achieved: {', '.join(context.get('milestones', [])) or 'None'}
+
+User Question:
+{question}
+
+Instructions:
+{language_instructions.get(language, language_instructions['en'])}
+
+Provide a helpful, context-aware answer that:
+1. Directly addresses the user's question
+2. Considers their current tutorial progress
+3. Provides actionable next steps if relevant
+4. Uses appropriate Adobe Experience Platform terminology
+5. Includes example commands when helpful (format: `adobe command`)
+6. Is concise but complete (aim for 3-5 paragraphs)
+
+If the question is about an error:
+- Explain the likely cause
+- Provide troubleshooting steps
+- Suggest how to verify the fix
+
+If the question is conceptual:
+- Explain the concept clearly
+- Relate it to Adobe Experience Platform
+- Give a practical example
+
+Answer:"""
+
+        try:
+            if self.active_client == "anthropic":
+                response = self.anthropic.messages.create(
+                    model=self.config.ai_model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                answer = response.content[0].text
+            elif self.active_client == "openai":
+                response = self.openai.chat.completions.create(
+                    model=self.config.ai_model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                answer = response.choices[0].message.content
+            else:
+                raise ValueError(f"Unknown AI provider: {self.active_client}")
+
+            return answer.strip()
+
+        except Exception as e:
+            if "invalid x-api-key" in str(e).lower() or "authentication" in str(e).lower() or "401" in str(e):
+                provider_name = self.active_client.title()
+                raise ValueError(
+                    f"{provider_name} API authentication failed. "
+                    f"Run 'adobe ai set-key {self.active_client}' to update your API key."
+                ) from e
+            raise
+
+
