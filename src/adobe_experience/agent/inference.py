@@ -768,3 +768,89 @@ Provide ONLY the JSON response, no other text."""
             implementation_strategy=analysis_data.get("implementation_strategy", ""),
             ai_reasoning=analysis_data.get("ai_reasoning", ""),
         )
+
+    async def suggest_schema_fields(
+        self,
+        schema_name: str,
+        schema_description: str,
+        domain: str,
+    ) -> List[Dict[str, Any]]:
+        """Suggest schema fields based on schema description and domain.
+
+        Args:
+            schema_name: Name of the schema
+            schema_description: Description of what the schema is for
+            domain: Domain of the schema (customer, product, event, etc.)
+
+        Returns:
+            List of suggested fields with name, type, and description
+        """
+        if not self.active_client:
+            raise ValueError("No AI provider configured")
+
+        prompt = f"""Based on the following schema requirements, suggest appropriate XDM fields:
+
+Schema Name: {schema_name}
+Schema Description: {schema_description}
+Domain: {domain}
+
+Please suggest 5-10 relevant fields that would be commonly needed for this type of schema.
+
+Return your response as a JSON array of field objects with the following structure:
+[
+  {{
+    "name": "fieldName",
+    "type": "string|integer|number|boolean|date|datetime|array|object",
+    "description": "Brief description of the field",
+    "required": true|false
+  }}
+]
+
+Important:
+- Use camelCase for field names
+- Choose appropriate data types
+- Mark critical fields as required
+- Include identity fields if relevant (email, userId, etc.)
+- Follow XDM best practices
+
+Return ONLY the JSON array, no additional text."""
+
+        try:
+            if self.active_client == "anthropic":
+                response = self.anthropic.messages.create(
+                    model=self.config.ai_model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                ai_output = response.content[0].text
+            elif self.active_client == "openai":
+                response = self.openai.chat.completions.create(
+                    model=self.config.ai_model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                ai_output = response.choices[0].message.content
+            else:
+                raise ValueError(f"Unknown AI provider: {self.active_client}")
+
+            # Extract JSON from response
+            if "```json" in ai_output:
+                json_start = ai_output.index("```json") + 7
+                json_end = ai_output.index("```", json_start)
+                ai_output = ai_output[json_start:json_end].strip()
+            elif "```" in ai_output:
+                json_start = ai_output.index("```") + 3
+                json_end = ai_output.index("```", json_start)
+                ai_output = ai_output[json_start:json_end].strip()
+
+            fields = json.loads(ai_output)
+            return fields if isinstance(fields, list) else []
+
+        except Exception as e:
+            # Return basic fields as fallback
+            return [
+                {"name": "id", "type": "string", "description": "Unique identifier", "required": True},
+                {"name": "name", "type": "string", "description": "Name or title", "required": True},
+                {"name": "createdAt", "type": "datetime", "description": "Creation timestamp", "required": False},
+            ]
+
