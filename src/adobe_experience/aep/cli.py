@@ -5,6 +5,8 @@ from rich.console import Console
 
 # Import subcommands
 from adobe_experience.cli.schema import schema_app
+from adobe_experience.cli.dataset import dataset_app
+from adobe_experience.cli.ingest import ingest_app
 
 # Create AEP CLI app
 aep_app = typer.Typer(
@@ -17,6 +19,8 @@ console = Console()
 
 # Register subcommands
 aep_app.add_typer(schema_app, name="schema")
+aep_app.add_typer(dataset_app, name="dataset")
+aep_app.add_typer(ingest_app, name="ingest")
 
 # Add info command
 @aep_app.command("info")

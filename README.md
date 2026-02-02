@@ -16,7 +16,9 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 - 🔧 **Unified Interface**: Single CLI for all Adobe Experience Cloud products
 - 🧠 **AI-Driven**: Uses LLM inference (OpenAI/Anthropic) for schema generation and validation
 - 📊 **XDM Schema Management**: Automatically generate XDM-compliant schemas from sample data
-- 🔑 **Secure Key Management**: Separate AI API key storage with `adobe ai` commands
+- � **Dataset Management**: Create, list, and manage AEP datasets with full lifecycle control
+- 🔄 **Batch Ingestion**: Create batches, monitor status, and manage data ingestion workflows
+- �🔑 **Secure Key Management**: Separate AI API key storage with `adobe ai` commands
 - 🔄 **Backward Compatible**: Legacy `adobe-aep` commands still supported (with deprecation warnings)
 - 🎯 **Multi-Product Ready**: Designed for AEP, Target, Analytics integration
 - 🛡️ **Type-Safe**: Built with Pydantic for robust data validation
@@ -94,6 +96,18 @@ adobe aep info            # Show AEP information
 adobe aep schema create   # Create XDM schema from sample data
 adobe aep schema list     # List schemas from AEP
 adobe aep schema get      # Get schema details
+
+# Dataset Management
+adobe aep dataset list    # List datasets
+adobe aep dataset create  # Create new dataset
+adobe aep dataset get     # Get dataset details
+adobe aep dataset enable-profile  # Enable for Profile
+
+# Batch Management
+adobe aep dataset create-batch    # Create batch for ingestion
+adobe aep dataset batch-status    # Check batch status
+adobe aep dataset list-batches    # List batches
+adobe aep dataset complete-batch  # Complete batch
 ```
 
 ### AI Provider Management
