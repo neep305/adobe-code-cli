@@ -48,7 +48,7 @@ def list_datasets(
             console.print("[yellow]No datasets found[/yellow]")
             return
 
-        table = Table(title=f"📊 Datasets ({len(datasets)} found)")
+        table = Table(title=f"Datasets ({len(datasets)} found)")
         table.add_column("Name", style="cyan", no_wrap=False)
         table.add_column("ID", style="dim")
         table.add_column("State", justify="center")
