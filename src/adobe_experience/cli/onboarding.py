@@ -324,14 +324,19 @@ def ask_ai_tutor(
             language="en",
         )
 
+    # Detect language from question (한글이 있으면 한국어로 판단)
+    detected_language = state.language or "en"
+    if any('\uac00' <= char <= '\ud7a3' for char in question):
+        detected_language = "ko"
+    
     # Get i18n instance for language
     i18n = get_i18n()
-    if state.language:
-        i18n.change_language(state.language)
+    if detected_language:
+        i18n.change_language(detected_language)
 
     # Display question
     console.print(Panel(
-        f"[bold cyan]{t('ai_tutor.ask', state.language)}[/bold cyan]\n\n{question}",
+        f"[bold cyan]{t('ai_tutor.ask', detected_language)}[/bold cyan]\n\n{question}",
         border_style="cyan",
     ))
 
@@ -340,7 +345,7 @@ def ask_ai_tutor(
         "scenario": state.scenario.value if state.scenario else "basic",
         "current_step": state.current_step or 0,
         "completed_steps": state.completed_steps or [],
-        "language": state.language or "en",
+        "language": detected_language,
         "milestones": [m.value for m in state.milestones_achieved] if state.milestones_achieved else [],
     }
 
@@ -348,12 +353,12 @@ def ask_ai_tutor(
     try:
         engine = AIInferenceEngine()
 
-        with console.status(f"[bold blue]{t('ai_tutor.thinking', state.language)}[/bold blue]"):
+        with console.status(f"[bold blue]{t('ai_tutor.thinking', detected_language)}[/bold blue]"):
             answer = asyncio.run(
                 engine.answer_tutorial_question(
                     question=question,
                     context=context,
-                    language=state.language,
+                    language=detected_language,
                 )
             )
 
@@ -361,13 +366,13 @@ def ask_ai_tutor(
         console.print()
         console.print(Panel(
             answer,
-            title=f"[bold green]{t('ai_tutor.answer', state.language)}[/bold green]",
+            title=f"[bold green]{t('ai_tutor.answer', detected_language)}[/bold green]",
             border_style="green",
         ))
 
     except ValueError as e:
         if "No AI provider configured" in str(e):
-            console.print(f"\n[red]{t('errors.auth_failed', state.language)}[/red]")
+            console.print(f"\n[red]{t('errors.auth_failed', detected_language)}[/red]")
             console.print("[yellow]AI tutor requires an API key. Configure one with:[/yellow]")
             console.print("  [cyan]adobe ai set-key anthropic[/cyan]")
             console.print("  [cyan]adobe ai set-key openai[/cyan]")
