@@ -15,6 +15,8 @@ from adobe_experience.core.config import (
     Milestone,
     load_onboarding_state,
     save_onboarding_state,
+    load_qa_cache,
+    save_qa_cache,
 )
 from adobe_experience.i18n import get_i18n, t
 
@@ -340,6 +342,23 @@ def ask_ai_tutor(
         border_style="cyan",
     ))
 
+    # Check cache first
+    qa_cache = load_qa_cache()
+    cached_entry = qa_cache.get(question, detected_language)
+    
+    if cached_entry:
+        console.print("[dim]💾 Found cached answer[/dim]\n")
+        console.print(Panel(
+            cached_entry.answer,
+            title=f"[bold green]{t('ai_tutor.answer', detected_language)}[/bold green]",
+            border_style="green",
+        ))
+        console.print(f"[dim]Used {cached_entry.hit_count} times | Last updated: {cached_entry.timestamp.strftime('%Y-%m-%d %H:%M')}[/dim]")
+        
+        # Save updated cache (hit_count was incremented)
+        save_qa_cache(qa_cache)
+        return
+
     # Prepare context
     context = {
         "scenario": state.scenario.value if state.scenario else "basic",
@@ -362,6 +381,15 @@ def ask_ai_tutor(
                 )
             )
 
+        # Save to cache
+        qa_cache.add(
+            question=question,
+            answer=answer,
+            language=detected_language,
+            context_scenario=context["scenario"],
+        )
+        save_qa_cache(qa_cache)
+
         # Display answer
         console.print()
         console.print(Panel(
@@ -382,6 +410,98 @@ def ask_ai_tutor(
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
         raise typer.Exit(1)
+
+
+@onboarding_app.command("clear-cache")
+def clear_qa_cache(
+    confirm: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompt",
+    ),
+) -> None:
+    """Clear AI tutor Q&A cache.
+
+    This will remove all cached question-answer pairs, requiring
+    fresh AI calls for all subsequent questions.
+
+    Examples:
+        adobe onboarding clear-cache
+        adobe onboarding clear-cache --yes
+    """
+    qa_cache = load_qa_cache()
+    
+    if not qa_cache.entries:
+        console.print("[yellow]Cache is already empty[/yellow]")
+        return
+    
+    cache_size = len(qa_cache.entries)
+    
+    if not confirm:
+        confirm = Confirm.ask(
+            f"Clear {cache_size} cached Q&A entries?",
+            default=False
+        )
+    
+    if not confirm:
+        console.print("[yellow]Cancelled[/yellow]")
+        return
+    
+    qa_cache.clear()
+    save_qa_cache(qa_cache)
+    
+    console.print(f"[green]✓ Cleared {cache_size} cached entries[/green]")
+    console.print("[dim]Future questions will require fresh AI calls[/dim]")
+
+
+@onboarding_app.command("cache-stats")
+def show_cache_stats() -> None:
+    """Show AI tutor cache statistics.
+
+    Examples:
+        adobe onboarding cache-stats
+    """
+    qa_cache = load_qa_cache()
+    
+    if not qa_cache.entries:
+        console.print("[yellow]Cache is empty[/yellow]")
+        return
+    
+    # Calculate statistics
+    total_entries = len(qa_cache.entries)
+    total_hits = sum(entry.hit_count for entry in qa_cache.entries)
+    
+    # Language breakdown
+    lang_counts = {}
+    for entry in qa_cache.entries:
+        lang_counts[entry.language] = lang_counts.get(entry.language, 0) + 1
+    
+    # Display statistics
+    console.print(Panel.fit(
+        f"[bold]Total Entries:[/bold] {total_entries}\n"
+        f"[bold]Total Cache Hits:[/bold] {total_hits}\n"
+        f"[bold]Average Hits per Entry:[/bold] {total_hits / total_entries:.1f}\n"
+        f"[bold]Languages:[/bold] {', '.join(f'{k} ({v})' for k, v in lang_counts.items())}",
+        title="Q&A Cache Statistics",
+        border_style="cyan",
+    ))
+    
+    # Show top 5 most used
+    if qa_cache.entries:
+        console.print("\n[bold]Top 5 Most Used:[/bold]")
+        sorted_entries = sorted(qa_cache.entries, key=lambda e: e.hit_count, reverse=True)
+        
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Question", style="white", max_width=50)
+        table.add_column("Language", style="magenta", width=8)
+        table.add_column("Hits", justify="right", style="green", width=6)
+        
+        for entry in sorted_entries[:5]:
+            question_preview = entry.question[:47] + "..." if len(entry.question) > 50 else entry.question
+            table.add_row(question_preview, entry.language, str(entry.hit_count))
+        
+        console.print(table)
 
 
 __all__ = ["onboarding_app"]

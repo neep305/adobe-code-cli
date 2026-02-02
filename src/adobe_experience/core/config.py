@@ -270,3 +270,114 @@ def save_onboarding_state(state: OnboardingState) -> bool:
     """
     return state.save()
 
+
+class QACacheEntry(BaseModel):
+    """Q&A cache entry for AI tutor responses."""
+
+    question: str
+    answer: str
+    language: str
+    context_scenario: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    hit_count: int = 0
+
+    def normalize_question(self, text: str) -> str:
+        """Normalize question for matching."""
+        return text.lower().strip()
+
+    def matches(self, question: str, language: str) -> bool:
+        """Check if this entry matches the given question."""
+        return (
+            self.normalize_question(self.question) == self.normalize_question(question)
+            and self.language == language
+        )
+
+
+class QACache(BaseModel):
+    """Q&A cache for AI tutor responses."""
+
+    entries: List[QACacheEntry] = Field(default_factory=list)
+    max_entries: int = 100
+
+    @classmethod
+    def load(cls, cache_file: Optional[Path] = None) -> "QACache":
+        """Load Q&A cache from file."""
+        if cache_file is None:
+            cache_file = Path.home() / ".adobe" / "qa_cache.json"
+
+        if not cache_file.exists():
+            return cls()
+
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return cls(**data)
+        except Exception:
+            return cls()
+
+    def save(self, cache_file: Optional[Path] = None) -> bool:
+        """Save Q&A cache to file."""
+        if cache_file is None:
+            cache_file = Path.home() / ".adobe" / "qa_cache.json"
+
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(self.model_dump(), f, indent=2, default=str)
+            return True
+        except Exception:
+            return False
+
+    def get(self, question: str, language: str) -> Optional[QACacheEntry]:
+        """Get cached answer for question."""
+        for entry in self.entries:
+            if entry.matches(question, language):
+                entry.hit_count += 1
+                entry.timestamp = datetime.now()
+                return entry
+        return None
+
+    def add(
+        self,
+        question: str,
+        answer: str,
+        language: str,
+        context_scenario: str = "basic",
+    ) -> None:
+        """Add new Q&A entry to cache."""
+        # Remove oldest entries if cache is full
+        if len(self.entries) >= self.max_entries:
+            # Sort by hit_count (ascending) and timestamp (ascending)
+            self.entries.sort(key=lambda e: (e.hit_count, e.timestamp))
+            self.entries = self.entries[1:]  # Remove least used/oldest
+
+        # Check if question already exists
+        existing = self.get(question, language)
+        if existing:
+            existing.answer = answer
+            existing.timestamp = datetime.now()
+        else:
+            self.entries.append(
+                QACacheEntry(
+                    question=question,
+                    answer=answer,
+                    language=language,
+                    context_scenario=context_scenario,
+                )
+            )
+
+    def clear(self) -> None:
+        """Clear all cache entries."""
+        self.entries = []
+
+
+def load_qa_cache() -> QACache:
+    """Load Q&A cache."""
+    return QACache.load()
+
+
+def save_qa_cache(cache: QACache) -> bool:
+    """Save Q&A cache."""
+    return cache.save()
+
