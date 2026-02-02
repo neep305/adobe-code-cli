@@ -127,11 +127,20 @@ class Milestone(str, Enum):
     TUTORIAL_COMPLETED = "tutorial-completed"
 
 
+class TutorialMode(str, Enum):
+    """Tutorial execution modes."""
+
+    ONLINE = "online"  # Connect to actual AEP environment
+    DRY_RUN = "dry-run"  # Simulate API calls without actual execution
+    OFFLINE = "offline"  # Use cached data and offline packages
+
+
 class OnboardingState(BaseModel):
     """Onboarding progress tracking."""
 
     scenario: Optional[TutorialScenario] = None
     language: str = "en"
+    mode: TutorialMode = TutorialMode.ONLINE
     current_step: int = 0
     completed_steps: List[int] = Field(default_factory=list)
     skipped_steps: List[int] = Field(default_factory=list)

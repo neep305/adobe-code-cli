@@ -12,6 +12,7 @@ from rich.progress import Progress, BarColumn, TextColumn, SpinnerColumn
 from adobe_experience.core.config import (
     OnboardingState,
     TutorialScenario,
+    TutorialMode,
     Milestone,
     load_onboarding_state,
     save_onboarding_state,
@@ -311,16 +312,29 @@ def start_tutorial(
 
     state.scenario = TutorialScenario(scenario)
 
-    # Mode selection
+    # Mode selection and save
     if offline:
-        mode = "offline"
+        state.mode = TutorialMode.OFFLINE
         console.print(f"\n[yellow]📦 {t('onboarding.modes.offline', language)}[/yellow]")
     elif dry_run:
-        mode = "dry-run"
+        state.mode = TutorialMode.DRY_RUN
         console.print(f"\n[yellow]🎓 {t('onboarding.modes.dry_run', language)}[/yellow]")
     else:
-        mode = "online"
+        state.mode = TutorialMode.ONLINE
         console.print(f"\n[green]🌐 {t('onboarding.modes.online', language)}[/green]")
+
+    # Show dry-run mode explanation
+    if state.mode == TutorialMode.DRY_RUN:
+        console.print()
+        console.print(Panel(
+            f"[bold yellow]🎓 Dry-Run Mode Enabled[/bold yellow]\n\n"
+            f"• Commands will be simulated without making actual API calls\n"
+            f"• You'll see what would happen without affecting your AEP environment\n"
+            f"• Perfect for learning and practicing before production use\n"
+            f"• All tutorial steps and guidance remain the same",
+            border_style="yellow",
+            expand=False,
+        ))
 
     # Save initial state
     if state.started_at is None:
@@ -356,11 +370,23 @@ def show_status() -> None:
 
     i18n = get_i18n(state.language)
 
-    # Progress header
+    # Progress header with mode indicator
+    mode_emoji = {
+        TutorialMode.ONLINE: "🌐",
+        TutorialMode.DRY_RUN: "🎓",
+        TutorialMode.OFFLINE: "📦",
+    }
+    mode_color = {
+        TutorialMode.ONLINE: "green",
+        TutorialMode.DRY_RUN: "yellow",
+        TutorialMode.OFFLINE: "blue",
+    }
+    
     console.print()
     console.print(
         Panel(
-            f"[bold]{t('onboarding.welcome', state.language)}[/bold]",
+            f"[bold]{t('onboarding.welcome', state.language)}[/bold]\n\n"
+            f"[{mode_color[state.mode]}]{mode_emoji[state.mode]} Mode: {state.mode.value.title()}[/{mode_color[state.mode]}]",
             border_style="cyan",
         )
     )

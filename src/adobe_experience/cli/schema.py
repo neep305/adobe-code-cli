@@ -211,6 +211,24 @@ def create_schema(
 
         # Upload to AEP
         if upload:
+            # Check if in dry-run mode
+            from adobe_experience.core.config import load_onboarding_state, TutorialMode
+            state = load_onboarding_state()
+            
+            if state and state.mode == TutorialMode.DRY_RUN:
+                console.print("\n[bold yellow]🎓 Dry-Run Mode: Simulating schema upload[/bold yellow]")
+                console.print(Panel(
+                    f"[bold]Simulated Upload[/bold]\n\n"
+                    f"Would upload schema to AEP:\n"
+                    f"  • Schema Name: {name}\n"
+                    f"  • Fields: {len(schema_json.get('properties', {}))} properties\n"
+                    f"  • Class: {schema_json.get('allOf', [{}])[0].get('$ref', 'N/A')}\n\n"
+                    f"[dim]In online mode, this would create a real schema in your AEP environment.[/dim]",
+                    border_style="yellow",
+                ))
+                console.print(f"[green]✓[/green] Dry-run completed successfully!")
+                return
+            
             config = get_config()
 
             console.print("\n[bold cyan]Uploading schema to AEP...[/bold cyan]")
