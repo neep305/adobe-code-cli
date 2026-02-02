@@ -27,6 +27,60 @@ onboarding_app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+# Tutorial step definitions
+TUTORIAL_STEPS = {
+    "basic": [
+        {
+            "key": "auth",
+            "name_en": "Step 1: Authentication Setup",
+            "name_ko": "1단계: 인증 설정",
+            "description_en": "Configure Adobe Experience Platform credentials",
+            "description_ko": "Adobe Experience Platform 자격 증명 구성",
+            "command": "adobe aep init",
+        },
+        {
+            "key": "ai_provider",
+            "name_en": "Step 2: AI Provider Configuration",
+            "name_ko": "2단계: AI 프로바이더 설정",
+            "description_en": "Set up Anthropic or OpenAI API key for AI features",
+            "description_ko": "AI 기능을 위한 Anthropic 또는 OpenAI API 키 설정",
+            "command": "adobe ai set-key anthropic",
+        },
+        {
+            "key": "schema",
+            "name_en": "Step 3: Schema Creation",
+            "name_ko": "3단계: 스키마 생성",
+            "description_en": "Design and create XDM schemas for your data",
+            "description_ko": "데이터를 위한 XDM 스키마 설계 및 생성",
+            "command": "adobe aep schema create --name MySchema --interactive",
+        },
+        {
+            "key": "upload_schema",
+            "name_en": "Step 4: Upload Schema to AEP",
+            "name_ko": "4단계: AEP에 스키마 업로드",
+            "description_en": "Register your schema in Adobe Experience Platform",
+            "description_ko": "Adobe Experience Platform에 스키마 등록",
+            "command": "adobe aep schema create --name MySchema --from-sample data.json --upload",
+        },
+        {
+            "key": "dataset",
+            "name_en": "Step 5: Create Dataset",
+            "name_ko": "5단계: 데이터셋 생성",
+            "description_en": "Set up datasets linked to your schemas",
+            "description_ko": "스키마와 연결된 데이터셋 설정",
+            "command": "adobe aep dataset list",
+        },
+        {
+            "key": "ingest",
+            "name_en": "Step 6: Data Ingestion",
+            "name_ko": "6단계: 데이터 수집",
+            "description_en": "Upload data to Adobe Experience Platform",
+            "description_ko": "Adobe Experience Platform에 데이터 업로드",
+            "command": "adobe aep dataset upload --dataset-id <id> --file data.csv",
+        },
+    ],
+}
+
 
 @onboarding_app.command("start")
 def start_tutorial(
@@ -171,8 +225,11 @@ def show_status() -> None:
         )
     )
 
+    # Get tutorial steps
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    total_steps = len(steps)
+
     # Progress bar
-    total_steps = 6  # Basic scenario has 6 steps
     progress_pct = state.get_progress_percentage(total_steps)
 
     console.print()
@@ -185,27 +242,56 @@ def show_status() -> None:
     ) as progress:
         progress.add_task("", completed=progress_pct, total=100)
 
-    # Steps tree
+    # Steps tree with details
     console.print()
     tree = Tree(f"[bold]{state.scenario.value.title()} Tutorial[/bold]")
 
-    for step_num in range(1, total_steps + 1):
+    for step_num, step_info in enumerate(steps, start=1):
         if step_num in state.completed_steps:
-            status = f"[green]✅ {t('onboarding.status.completed', state.language)}[/green]"
+            status_icon = "[green]✅[/green]"
+            status_text = f"[green]{t('onboarding.status.completed', state.language)}[/green]"
         elif step_num == state.current_step:
-            status = f"[yellow]🔄 {t('onboarding.status.in_progress', state.language)}[/yellow]"
+            status_icon = "[yellow]🔄[/yellow]"
+            status_text = f"[yellow]{t('onboarding.status.in_progress', state.language)}[/yellow]"
         elif step_num in state.skipped_steps:
-            status = f"[dim]⚠️ {t('onboarding.status.skipped', state.language)}[/dim]"
+            status_icon = "[dim]⚠️[/dim]"
+            status_text = f"[dim]{t('onboarding.status.skipped', state.language)}[/dim]"
         else:
-            status = f"[dim]⬜ {t('onboarding.status.not_started', state.language)}[/dim]"
+            status_icon = "[dim]⬜[/dim]"
+            status_text = f"[dim]{t('onboarding.status.not_started', state.language)}[/dim]"
 
-        step_key = ["auth", "ai_provider", "schema", "upload_schema", "dataset", "ingest"][
-            step_num - 1
-        ]
-        step_name = t(f"onboarding.steps.{step_key}", state.language)
-        tree.add(f"{step_name} - {status}")
+        # Get localized step info
+        name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+        desc_key = f"description_{state.language}" if state.language in ["en", "ko"] else "description_en"
+        
+        step_name = step_info.get(name_key, step_info["name_en"])
+        step_desc = step_info.get(desc_key, step_info["description_en"])
+        step_cmd = step_info["command"]
+        
+        # Create step node
+        step_node = tree.add(f"{status_icon} {step_name} - {status_text}")
+        
+        # Add description and command as subnodes
+        step_node.add(f"[dim]{step_desc}[/dim]")
+        step_node.add(f"[cyan]→ {step_cmd}[/cyan]")
 
     console.print(tree)
+
+    # Next action hint
+    if state.current_step and state.current_step <= len(steps):
+        current_step_info = steps[state.current_step - 1]
+        desc_key = f"description_{state.language}" if state.language in ["en", "ko"] else "description_en"
+        name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+        
+        console.print()
+        console.print(Panel(
+            f"[bold]Next Step:[/bold]\n"
+            f"{current_step_info.get(name_key, current_step_info['name_en'])}\n\n"
+            f"[dim]{current_step_info.get(desc_key, current_step_info['description_en'])}[/dim]\n\n"
+            f"[cyan]Run: {current_step_info['command']}[/cyan]",
+            title="📍 Current Task",
+            border_style="yellow",
+        ))
 
     # Milestones
     if state.milestones_achieved:
