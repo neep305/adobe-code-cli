@@ -1,8 +1,8 @@
 # Adobe Experience Cloud CLI
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/yourusername/adobe-code)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/neep305/adobe-code-cli)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)]()
 
 Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analytics, and more.
@@ -26,15 +26,47 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 
 ## 📦 Installation
 
+### From Git Repository (Recommended)
+
+Install directly from GitHub - no need to clone the repository:
+
+```bash
+# Install latest version from main branch
+pip install git+https://github.com/neep305/adobe-code-cli.git
+
+# Install specific release version
+pip install git+https://github.com/neep305/adobe-code-cli.git@v0.2.0
+
+# With optional data processing dependencies
+pip install "adobe-experience-cloud-cli[data] @ git+https://github.com/neep305/adobe-code-cli.git"
+```
+
 ### Development Installation
+
+For contributors or local development:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/adobe-code.git
-cd adobe-code
+git clone https://github.com/neep305/adobe-code-cli.git
+cd adobe-code-cli
 
-# Install in editable mode
-pip install -e .
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
+
+### Requirements
+
+- **Python**: 3.10 or higher
+- **Git**: Required for repository installation
+- **Network**: Internet access for Adobe API calls
+
+### Upgrading
+
+Update to the latest version:
+
+```bash
+pip install --upgrade git+https://github.com/neep305/adobe-code-cli.git
+```
 🚀 Quick Start
 
 ### 1. Configure Credentials
