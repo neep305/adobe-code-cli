@@ -15,6 +15,7 @@ from adobe_experience.aep.client import AEPClient
 from adobe_experience.agent.inference import AIInferenceEngine, SchemaGenerationRequest
 from adobe_experience.cli.auth import auth_app
 from adobe_experience.cli.ai import ai_app
+from adobe_experience.cli.onboarding import onboarding_app
 from adobe_experience.core.config import get_config
 from adobe_experience.schema.xdm import XDMSchemaAnalyzer, XDMSchemaRegistry
 
@@ -42,6 +43,7 @@ app.add_typer(
 # Register common commands
 app.add_typer(auth_app, name="auth", help="Authentication management")
 app.add_typer(ai_app, name="ai", help="AI provider configuration")
+app.add_typer(onboarding_app, name="onboarding", help="Interactive onboarding tutorials")
 
 console = Console()
 

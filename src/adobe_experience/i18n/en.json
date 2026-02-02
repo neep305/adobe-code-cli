@@ -1,0 +1,112 @@
+{
+  "onboarding": {
+    "welcome": "Welcome to Adobe Experience Platform CLI!",
+    "language_select": "Select your language",
+    "scenario_select": "Choose a tutorial scenario",
+    "mode_select": "Select tutorial mode",
+    "scenarios": {
+      "basic": "Basic - Essential 5 steps (Recommended for beginners)",
+      "data_engineer": "Data Engineer - Batch optimization and large-scale processing",
+      "marketer": "Marketer - Profile, Identity, and Segmentation",
+      "custom": "Custom - Use your own tutorial"
+    },
+    "modes": {
+      "online": "Online - Connect to actual AEP environment",
+      "dry_run": "Dry-Run - Practice without real API calls",
+      "offline": "Offline - Use downloaded tutorial package"
+    },
+    "steps": {
+      "auth": "Step 1: Authentication Setup",
+      "ai_provider": "Step 2: AI Provider Configuration",
+      "schema": "Step 3: Schema Creation",
+      "upload_schema": "Step 4: Upload Schema to AEP",
+      "dataset": "Step 5: Create Dataset",
+      "ingest": "Step 6: Data Ingestion"
+    },
+    "status": {
+      "completed": "Completed",
+      "in_progress": "In Progress",
+      "skipped": "Skipped",
+      "not_started": "Not Started"
+    },
+    "actions": {
+      "continue": "Continue",
+      "skip": "Skip this step",
+      "retry": "Retry",
+      "exit": "Exit tutorial",
+      "help": "Show help (type ?)"
+    },
+    "messages": {
+      "step_complete": "Step completed successfully!",
+      "step_skipped": "Step skipped",
+      "tutorial_complete": "Congratulations! Tutorial completed!",
+      "error_occurred": "An error occurred",
+      "progress": "Progress",
+      "next_action": "Next action",
+      "estimated_time": "Estimated time"
+    },
+    "milestones": {
+      "first_auth": "🎉 First Authentication Complete!",
+      "first_schema": "⭐ First Schema Created!",
+      "first_dataset": "📊 First Dataset Created!",
+      "first_upload": "🚀 First Data Upload Complete!",
+      "data_100mb": "🏆 Uploaded 100MB+ of Data!",
+      "profile_enabled": "👤 Profile Service Enabled!",
+      "ai_configured": "🤖 AI Provider Configured!",
+      "tutorial_completed": "🎓 Tutorial Completed!"
+    }
+  },
+  "template": {
+    "list_title": "Available Templates",
+    "builtin": "Built-in",
+    "custom": "Custom",
+    "name": "Name",
+    "description": "Description",
+    "domain": "Domain",
+    "tags": "Tags",
+    "version": "Version",
+    "created": "Created",
+    "no_templates": "No templates found",
+    "select_template": "Select a template",
+    "save_success": "Template saved successfully",
+    "delete_success": "Template deleted successfully",
+    "save_as_template": "Save as template?",
+    "template_name": "Template name"
+  },
+  "help": {
+    "title": "Help",
+    "description": "Description",
+    "examples": "Examples",
+    "tips": "Tips",
+    "faq": "Frequently Asked Questions",
+    "context_help": "Context-specific help is available at any step by typing '?'"
+  },
+  "ai_tutor": {
+    "ask": "Ask AI Tutor",
+    "thinking": "AI Tutor is thinking...",
+    "answer": "Answer",
+    "stuck_prompt": "Seems like you're stuck. Would you like to ask the AI Tutor?",
+    "placeholder": "Type your question here..."
+  },
+  "errors": {
+    "auth_failed": "Authentication failed",
+    "schema_invalid": "Invalid schema",
+    "upload_failed": "Upload failed",
+    "connection_error": "Connection error",
+    "file_not_found": "File not found",
+    "permission_denied": "Permission denied"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "loading": "Loading...",
+    "success": "Success",
+    "failed": "Failed",
+    "optional": "Optional"
+  }
+}
