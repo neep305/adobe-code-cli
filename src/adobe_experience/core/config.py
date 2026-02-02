@@ -38,6 +38,10 @@ class AEPConfig(BaseSettings):
     # AI Provider Configuration
     anthropic_api_key: Optional[SecretStr] = Field(default=None, description="Anthropic API key")
     openai_api_key: Optional[SecretStr] = Field(default=None, description="OpenAI API key")
+    ai_provider: str = Field(
+        default="auto",
+        description="AI provider to use (auto, openai, anthropic)",
+    )
     ai_model: str = Field(
         default="claude-3-5-sonnet-20241022",
         description="AI model to use for inference",
@@ -65,22 +69,26 @@ class AEPConfig(BaseSettings):
         
         # Priority: .env > stored keys > None
         
-        # Load OpenAI key
-        if not self.openai_api_key and "openai" in stored_creds:
-            self.openai_api_key = SecretStr(stored_creds["openai"]["api_key"])
-            # Load model if set and not in config
-            if not self.ai_model and stored_creds["openai"].get("model"):
-                self.ai_model = stored_creds["openai"]["model"]
-        
-        # Load Anthropic key
-        if not self.anthropic_api_key and "anthropic" in stored_creds:
-            self.anthropic_api_key = SecretStr(stored_creds["anthropic"]["api_key"])
-            if not self.ai_model and stored_creds["anthropic"].get("model"):
-                self.ai_model = stored_creds["anthropic"]["model"]
-        
-        # Load default provider
+        # Load default provider first
         if self.ai_provider == "auto" and "_default" in stored_creds:
             self.ai_provider = stored_creds["_default"]
+        
+        # Load OpenAI key and model
+        if not self.openai_api_key and "openai" in stored_creds:
+            self.openai_api_key = SecretStr(stored_creds["openai"]["api_key"])
+        
+        # Load Anthropic key and model
+        if not self.anthropic_api_key and "anthropic" in stored_creds:
+            self.anthropic_api_key = SecretStr(stored_creds["anthropic"]["api_key"])
+        
+        # Load model based on active provider
+        if self.ai_model == "claude-3-5-sonnet-20241022":  # Default value
+            if self.ai_provider == "openai" and "openai" in stored_creds:
+                if stored_creds["openai"].get("model"):
+                    self.ai_model = stored_creds["openai"]["model"]
+            elif self.ai_provider == "anthropic" and "anthropic" in stored_creds:
+                if stored_creds["anthropic"].get("model"):
+                    self.ai_model = stored_creds["anthropic"]["model"]
 
     @property
     def credentials_path(self) -> Path:

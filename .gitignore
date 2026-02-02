@@ -56,3 +56,5 @@ dmypy.json
 
 # Adobe specific
 .adobe/
+
+oauth_server_to_server.postman_environment.json

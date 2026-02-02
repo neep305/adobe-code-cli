@@ -1,0 +1,126 @@
+{
+  "entities": [
+    "customers",
+    "events",
+    "orders",
+    "products"
+  ],
+  "relationships": [
+    {
+      "source_entity": "orders",
+      "source_field": "customer_id",
+      "target_entity": "customers",
+      "target_field": "customer_id",
+      "relationship_type": "N:1",
+      "confidence": 0.95,
+      "reasoning": "orders.customer_id references customers.customer_id"
+    },
+    {
+      "source_entity": "events",
+      "source_field": "customer_id",
+      "target_entity": "customers",
+      "target_field": "customer_id",
+      "relationship_type": "N:1",
+      "confidence": 0.95,
+      "reasoning": "events.customer_id references customers.customer_id"
+    },
+    {
+      "source_entity": "orders",
+      "source_field": "product_id",
+      "target_entity": "products",
+      "target_field": "product_id",
+      "relationship_type": "N:M",
+      "confidence": 0.9,
+      "reasoning": "Each order can contain multiple products, products can be in multiple orders"
+    },
+    {
+      "source_entity": "events",
+      "source_field": "session_id",
+      "target_entity": "events",
+      "target_field": "session_id",
+      "relationship_type": "N:1",
+      "confidence": 0.85,
+      "reasoning": "events.session_id is used to track multiple events within a session"
+    }
+  ],
+  "xdm_class_recommendations": [
+    {
+      "entity_name": "customers",
+      "recommended_class": "XDM Individual Profile",
+      "recommended_class_id": "https://ns.adobe.com/xdm/context/profile",
+      "confidence": 0.98,
+      "reasoning": "Contains person-level attributes and demographics",
+      "alternative_classes": []
+    },
+    {
+      "entity_name": "orders",
+      "recommended_class": "XDM Commerce Details",
+      "recommended_class_id": "https://ns.adobe.com/xdm/mixins/commercecommerce",
+      "confidence": 0.95,
+      "reasoning": "Contains detailed order information suitable for commerce class",
+      "alternative_classes": []
+    },
+    {
+      "entity_name": "events",
+      "recommended_class": "XDM ExperienceEvent",
+      "recommended_class_id": "https://ns.adobe.com/xdm/event/experienceevent",
+      "confidence": 0.97,
+      "reasoning": "Captures time-series events and interactions",
+      "alternative_classes": []
+    },
+    {
+      "entity_name": "products",
+      "recommended_class": "Custom Product Class",
+      "recommended_class_id": null,
+      "confidence": 0.9,
+      "reasoning": "Details about individual products do not fit standard XDM classes",
+      "alternative_classes": []
+    }
+  ],
+  "identity_strategies": [
+    {
+      "entity_name": "customers",
+      "primary_identity_field": "customer_id",
+      "identity_namespace": "CRM_ID",
+      "additional_identity_fields": [
+        "email"
+      ],
+      "reasoning": "customer_id is unique identifier, email for cross-channel identity"
+    },
+    {
+      "entity_name": "orders",
+      "primary_identity_field": "order_id",
+      "identity_namespace": "ORDER_ID",
+      "additional_identity_fields": [],
+      "reasoning": "order_id is unique identifier for orders"
+    },
+    {
+      "entity_name": "products",
+      "primary_identity_field": "product_id",
+      "identity_namespace": "PRODUCT_ID",
+      "additional_identity_fields": [],
+      "reasoning": "product_id uniquely identifies each product"
+    }
+  ],
+  "field_group_suggestions": {
+    "customers": [
+      "Demographic Details",
+      "Personal Contact Details",
+      "Loyalty Details"
+    ],
+    "orders": [
+      "Commerce Details",
+      "Order Details"
+    ],
+    "events": [
+      "Event Metadata",
+      "Device Details"
+    ],
+    "products": [
+      "Product Details",
+      "Inventory Details"
+    ]
+  },
+  "implementation_strategy": "Denormalized approach recommended: embed critical customer fields in events to avoid joins. Use Profile for customer master data, ExperienceEvent for orders/events.",
+  "ai_reasoning": "Overall analysis of the dataset structure, recommended approach, and key considerations for AEP implementation."
+}
