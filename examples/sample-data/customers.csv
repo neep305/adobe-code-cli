@@ -1,0 +1,6 @@
+customer_id,email,first_name,last_name,date_of_birth,account_created,account_status,customer_tier,total_orders,lifetime_value
+CUST-001,alice.johnson@example.com,Alice,Johnson,1985-03-15,2024-01-10T08:30:00Z,active,gold,24,4250.75
+CUST-002,bob.smith@example.com,Bob,Smith,1990-07-22,2024-02-15T14:20:00Z,active,silver,12,1850.50
+CUST-003,carol.williams@example.com,Carol,Williams,1978-11-08,2023-10-05T10:15:00Z,active,platinum,45,8920.25
+CUST-004,david.brown@example.com,David,Brown,1995-05-30,2024-03-20T16:45:00Z,active,bronze,3,425.00
+CUST-005,emma.davis@example.com,Emma,Davis,1988-09-12,2023-12-01T09:00:00Z,active,gold,32,5680.25

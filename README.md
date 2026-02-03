@@ -26,6 +26,82 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 
 ## 📦 Installation
 
+### Prerequisites: Ensure pip is Installed
+
+Before installing this CLI, verify that pip is available:
+
+**Check if pip is installed:**
+```bash
+pip --version
+```
+
+**If pip is not installed:**
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+```powershell
+# Option 1: Using Python installer
+# Download Python from https://www.python.org/downloads/
+# During installation, check "Add Python to PATH" and "Install pip"
+
+# Option 2: If Python is already installed but pip is missing
+python -m ensurepip --upgrade
+
+# Option 3: Manual installation
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python get-pip.py
+```
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+# Option 1: Using Homebrew (recommended)
+brew install python  # Includes pip
+
+# Option 2: If Python is installed via python.org
+python3 -m ensurepip --upgrade
+
+# Option 3: Manual installation
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3 get-pip.py
+```
+</details>
+
+<details>
+<summary><strong>Linux (Ubuntu/Debian)</strong></summary>
+
+```bash
+# Update package list
+sudo apt update
+
+# Install pip for Python 3
+sudo apt install python3-pip
+
+# Verify installation
+pip3 --version
+```
+</details>
+
+<details>
+<summary><strong>Linux (CentOS/RHEL/Fedora)</strong></summary>
+
+```bash
+# Using dnf (Fedora/RHEL 8+)
+sudo dnf install python3-pip
+
+# Using yum (CentOS/RHEL 7)
+sudo yum install python3-pip
+
+# Verify installation
+pip3 --version
+```
+</details>
+
+---
+
 ### From Git Repository (Recommended)
 
 Install directly from GitHub - no need to clone the repository:

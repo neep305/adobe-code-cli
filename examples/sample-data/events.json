@@ -1,0 +1,94 @@
+[
+  {
+    "event_id": "EVT-001",
+    "event_type": "page_view",
+    "timestamp": "2026-02-01T10:15:30Z",
+    "customer_id": "CUST-001",
+    "session_id": "sess_abc123",
+    "page_url": "/products/wireless-headphones",
+    "page_title": "Wireless Headphones - Best Audio",
+    "referrer_url": "https://google.com/search?q=wireless+headphones",
+    "device_type": "desktop",
+    "browser": "Chrome",
+    "os": "Windows"
+  },
+  {
+    "event_id": "EVT-002",
+    "event_type": "product_view",
+    "timestamp": "2026-02-01T10:16:45Z",
+    "customer_id": "CUST-001",
+    "session_id": "sess_abc123",
+    "product_id": "PROD-101",
+    "product_name": "Wireless Headphones",
+    "product_category": "Electronics",
+    "product_price": 149.99,
+    "device_type": "desktop"
+  },
+  {
+    "event_id": "EVT-003",
+    "event_type": "add_to_cart",
+    "timestamp": "2026-02-01T10:18:20Z",
+    "customer_id": "CUST-001",
+    "session_id": "sess_abc123",
+    "product_id": "PROD-101",
+    "product_name": "Wireless Headphones",
+    "quantity": 1,
+    "price": 149.99,
+    "cart_total": 149.99,
+    "device_type": "desktop"
+  },
+  {
+    "event_id": "EVT-004",
+    "event_type": "page_view",
+    "timestamp": "2026-02-01T11:20:15Z",
+    "customer_id": "CUST-002",
+    "session_id": "sess_xyz789",
+    "page_url": "/category/accessories",
+    "page_title": "Phone Accessories",
+    "referrer_url": "https://facebook.com",
+    "device_type": "mobile",
+    "browser": "Safari",
+    "os": "iOS"
+  },
+  {
+    "event_id": "EVT-005",
+    "event_type": "search",
+    "timestamp": "2026-02-01T11:21:30Z",
+    "customer_id": "CUST-002",
+    "session_id": "sess_xyz789",
+    "search_query": "usb cable",
+    "search_results_count": 15,
+    "device_type": "mobile"
+  },
+  {
+    "event_id": "EVT-006",
+    "event_type": "purchase",
+    "timestamp": "2026-02-01T14:45:00Z",
+    "customer_id": "CUST-003",
+    "session_id": "sess_def456",
+    "order_id": "ORD-2026-003",
+    "order_total": 1299.00,
+    "payment_method": "credit_card",
+    "device_type": "desktop"
+  },
+  {
+    "event_id": "EVT-007",
+    "event_type": "email_click",
+    "timestamp": "2026-02-02T08:30:00Z",
+    "customer_id": "CUST-005",
+    "campaign_id": "CAMP-WINTER-2026",
+    "email_subject": "Winter Sale - 30% Off",
+    "link_url": "/sale/winter",
+    "device_type": "mobile"
+  },
+  {
+    "event_id": "EVT-008",
+    "event_type": "cart_abandonment",
+    "timestamp": "2026-02-02T10:00:00Z",
+    "customer_id": "CUST-004",
+    "session_id": "sess_ghi789",
+    "cart_total": 425.00,
+    "items_count": 2,
+    "device_type": "desktop"
+  }
+]

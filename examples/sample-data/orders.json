@@ -1,0 +1,93 @@
+[
+  {
+    "order_id": "ORD-2026-001",
+    "customer_id": "CUST-001",
+    "order_date": "2026-01-15T10:30:00Z",
+    "order_total": 249.99,
+    "order_status": "delivered",
+    "payment_method": "credit_card",
+    "shipping_method": "standard",
+    "items": [
+      {
+        "product_id": "PROD-101",
+        "product_name": "Wireless Headphones",
+        "quantity": 1,
+        "unit_price": 149.99
+      },
+      {
+        "product_id": "PROD-205",
+        "product_name": "Phone Case",
+        "quantity": 2,
+        "unit_price": 50.00
+      }
+    ]
+  },
+  {
+    "order_id": "ORD-2026-002",
+    "customer_id": "CUST-002",
+    "order_date": "2026-01-18T14:20:00Z",
+    "order_total": 89.50,
+    "order_status": "processing",
+    "payment_method": "paypal",
+    "shipping_method": "express",
+    "items": [
+      {
+        "product_id": "PROD-302",
+        "product_name": "USB Cable",
+        "quantity": 3,
+        "unit_price": 29.50
+      }
+    ]
+  },
+  {
+    "order_id": "ORD-2026-003",
+    "customer_id": "CUST-003",
+    "order_date": "2026-01-20T09:15:00Z",
+    "order_total": 1299.00,
+    "order_status": "shipped",
+    "payment_method": "credit_card",
+    "shipping_method": "overnight",
+    "items": [
+      {
+        "product_id": "PROD-501",
+        "product_name": "Laptop Pro 15",
+        "quantity": 1,
+        "unit_price": 1299.00
+      }
+    ]
+  },
+  {
+    "order_id": "ORD-2026-004",
+    "customer_id": "CUST-001",
+    "order_date": "2026-01-22T16:45:00Z",
+    "order_total": 45.99,
+    "order_status": "delivered",
+    "payment_method": "credit_card",
+    "shipping_method": "standard",
+    "items": [
+      {
+        "product_id": "PROD-403",
+        "product_name": "Notebook Set",
+        "quantity": 1,
+        "unit_price": 45.99
+      }
+    ]
+  },
+  {
+    "order_id": "ORD-2026-005",
+    "customer_id": "CUST-005",
+    "order_date": "2026-01-25T11:30:00Z",
+    "order_total": 599.99,
+    "order_status": "delivered",
+    "payment_method": "debit_card",
+    "shipping_method": "express",
+    "items": [
+      {
+        "product_id": "PROD-601",
+        "product_name": "Smart Watch Ultra",
+        "quantity": 1,
+        "unit_price": 599.99
+      }
+    ]
+  }
+]

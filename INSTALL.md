@@ -1,5 +1,107 @@
 # Adobe Experience Cloud CLI - Installation Guide
 
+## Prerequisites
+
+### 1. Verify pip Installation
+
+Before proceeding, ensure pip is installed on your system:
+
+```bash
+pip --version
+```
+
+**If pip is not found, install it first:**
+
+<details>
+<summary><strong>Windows Installation</strong></summary>
+
+```powershell
+# Method 1: Reinstall Python with pip
+# Download from https://www.python.org/downloads/
+# ✅ Check "Add Python to PATH"
+# ✅ Check "Install pip"
+
+# Method 2: If Python is already installed
+python -m ensurepip --upgrade
+
+# Method 3: Manual installation
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python get-pip.py
+rm get-pip.py
+
+# Verify installation
+pip --version
+```
+</details>
+
+<details>
+<summary><strong>macOS Installation</strong></summary>
+
+```bash
+# Method 1: Using Homebrew (recommended)
+brew install python  # Automatically includes pip
+
+# Method 2: Using system Python
+python3 -m ensurepip --upgrade
+
+# Method 3: Manual installation
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3 get-pip.py
+rm get-pip.py
+
+# Verify installation
+pip3 --version
+```
+</details>
+
+<details>
+<summary><strong>Linux Installation</strong></summary>
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install python3-pip
+
+# Verify
+pip3 --version
+```
+
+**CentOS/RHEL/Fedora:**
+```bash
+# Fedora/RHEL 8+
+sudo dnf install python3-pip
+
+# CentOS/RHEL 7
+sudo yum install python3-pip
+
+# Verify
+pip3 --version
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S python-pip
+```
+</details>
+
+---
+
+### 2. Verify Git Installation
+
+Git is required for installing from GitHub:
+
+```bash
+git --version
+```
+
+**If git is not found:**
+
+- **Windows**: Download from [git-scm.com](https://git-scm.com/download/win)
+- **macOS**: `brew install git` or download from [git-scm.com](https://git-scm.com/download/mac)
+- **Linux**: `sudo apt install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora/RHEL)
+
+---
+
 ## Quick Start: Install from GitHub
 
 ```bash
@@ -10,11 +112,12 @@ pip install git+https://github.com/neep305/adobe-code-cli.git@v0.2.0
 pip install git+https://github.com/neep305/adobe-code-cli.git
 ```
 
-## Requirements
+## System Requirements
 
 - **Python**: 3.10, 3.11, or 3.12
-- **Git**: Must be installed and accessible from command line
-- **Operating System**: Windows, macOS, or Linux
+- **pip**: 21.0 or higher (installed with Python)
+- **Git**: 2.0 or higher (for GitHub installation)
+- **Operating System**: Windows 10/11, macOS 10.15+, Linux (Ubuntu 20.04+, CentOS 8+, or equivalent)
 
 ## Installation Methods
 

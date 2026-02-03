@@ -1,0 +1,124 @@
+{
+  "title": "Customer Profile Schema",
+  "type": "object",
+  "description": "Schema for customer profile data in Adobe Experience Platform",
+  "allOf": [
+    {
+      "$ref": "https://ns.adobe.com/xdm/context/profile"
+    }
+  ],
+  "properties": {
+    "customerId": {
+      "title": "Customer ID",
+      "description": "Unique identifier for the customer",
+      "type": "string",
+      "meta:xdmType": "string"
+    },
+    "personalEmail": {
+      "title": "Personal Email",
+      "type": "object",
+      "properties": {
+        "address": {
+          "title": "Email Address",
+          "type": "string",
+          "format": "email",
+          "meta:xdmType": "string"
+        },
+        "primary": {
+          "title": "Primary Email",
+          "type": "boolean",
+          "meta:xdmType": "boolean"
+        }
+      }
+    },
+    "person": {
+      "title": "Person",
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Full Name",
+          "type": "object",
+          "properties": {
+            "firstName": {
+              "title": "First Name",
+              "type": "string",
+              "meta:xdmType": "string"
+            },
+            "lastName": {
+              "title": "Last Name",
+              "type": "string",
+              "meta:xdmType": "string"
+            }
+          }
+        },
+        "birthDate": {
+          "title": "Birth Date",
+          "type": "string",
+          "format": "date",
+          "meta:xdmType": "date"
+        }
+      }
+    },
+    "homeAddress": {
+      "title": "Home Address",
+      "type": "object",
+      "properties": {
+        "street1": {
+          "title": "Street Address",
+          "type": "string",
+          "meta:xdmType": "string"
+        },
+        "city": {
+          "title": "City",
+          "type": "string",
+          "meta:xdmType": "string"
+        },
+        "stateProvince": {
+          "title": "State/Province",
+          "type": "string",
+          "meta:xdmType": "string"
+        },
+        "postalCode": {
+          "title": "Postal Code",
+          "type": "string",
+          "meta:xdmType": "string"
+        },
+        "country": {
+          "title": "Country",
+          "type": "string",
+          "meta:xdmType": "string"
+        }
+      }
+    },
+    "customerTier": {
+      "title": "Customer Tier",
+      "description": "Loyalty tier of the customer",
+      "type": "string",
+      "enum": ["bronze", "silver", "gold", "platinum"],
+      "meta:xdmType": "string"
+    },
+    "accountCreatedDate": {
+      "title": "Account Created Date",
+      "type": "string",
+      "format": "date-time",
+      "meta:xdmType": "date-time"
+    },
+    "accountStatus": {
+      "title": "Account Status",
+      "type": "string",
+      "enum": ["active", "inactive", "suspended"],
+      "meta:xdmType": "string"
+    },
+    "loyaltyPoints": {
+      "title": "Loyalty Points",
+      "type": "integer",
+      "meta:xdmType": "int"
+    },
+    "lifetimeValue": {
+      "title": "Customer Lifetime Value",
+      "type": "number",
+      "meta:xdmType": "number"
+    }
+  },
+  "meta:xdmType": "object"
+}

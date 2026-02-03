@@ -1,0 +1,127 @@
+[
+  {
+    "customer_id": "CUST-001",
+    "email": "alice.johnson@example.com",
+    "first_name": "Alice",
+    "last_name": "Johnson",
+    "date_of_birth": "1985-03-15",
+    "account_created": "2024-01-10T08:30:00Z",
+    "account_status": "active",
+    "customer_tier": "gold",
+    "total_orders": 24,
+    "lifetime_value": 4250.75,
+    "loyalty_points": 5820,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": false,
+      "push_notifications": true
+    },
+    "address": {
+      "street": "123 Main Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94102",
+      "country": "USA"
+    }
+  },
+  {
+    "customer_id": "CUST-002",
+    "email": "bob.smith@example.com",
+    "first_name": "Bob",
+    "last_name": "Smith",
+    "date_of_birth": "1990-07-22",
+    "account_created": "2024-02-15T14:20:00Z",
+    "account_status": "active",
+    "customer_tier": "silver",
+    "total_orders": 12,
+    "lifetime_value": 1850.50,
+    "loyalty_points": 2340,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": false
+    },
+    "address": {
+      "street": "456 Oak Avenue",
+      "city": "Los Angeles",
+      "state": "CA",
+      "postal_code": "90001",
+      "country": "USA"
+    }
+  },
+  {
+    "customer_id": "CUST-003",
+    "email": "carol.williams@example.com",
+    "first_name": "Carol",
+    "last_name": "Williams",
+    "date_of_birth": "1978-11-08",
+    "account_created": "2023-10-05T10:15:00Z",
+    "account_status": "active",
+    "customer_tier": "platinum",
+    "total_orders": 45,
+    "lifetime_value": 8920.25,
+    "loyalty_points": 12500,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": true
+    },
+    "address": {
+      "street": "789 Pine Road",
+      "city": "Seattle",
+      "state": "WA",
+      "postal_code": "98101",
+      "country": "USA"
+    }
+  },
+  {
+    "customer_id": "CUST-004",
+    "email": "david.brown@example.com",
+    "first_name": "David",
+    "last_name": "Brown",
+    "date_of_birth": "1995-05-30",
+    "account_created": "2024-03-20T16:45:00Z",
+    "account_status": "active",
+    "customer_tier": "bronze",
+    "total_orders": 3,
+    "lifetime_value": 425.00,
+    "loyalty_points": 520,
+    "marketing_preferences": {
+      "email_opt_in": false,
+      "sms_opt_in": false,
+      "push_notifications": true
+    },
+    "address": {
+      "street": "321 Elm Street",
+      "city": "Portland",
+      "state": "OR",
+      "postal_code": "97201",
+      "country": "USA"
+    }
+  },
+  {
+    "customer_id": "CUST-005",
+    "email": "emma.davis@example.com",
+    "first_name": "Emma",
+    "last_name": "Davis",
+    "date_of_birth": "1988-09-12",
+    "account_created": "2023-12-01T09:00:00Z",
+    "account_status": "active",
+    "customer_tier": "gold",
+    "total_orders": 32,
+    "lifetime_value": 5680.25,
+    "loyalty_points": 8920,
+    "marketing_preferences": {
+      "email_opt_in": true,
+      "sms_opt_in": true,
+      "push_notifications": true
+    },
+    "address": {
+      "street": "654 Maple Drive",
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "USA"
+    }
+  }
+]
