@@ -111,17 +111,17 @@ Once you have your credentials:
 
 1. Run the initialization wizard:
    ```bash
-   adobe-aep init
+   aep init
    ```
 
 2. Test your connection:
    ```bash
-   adobe-aep auth test
+   aep auth test
    ```
 
 3. Start using the CLI:
    ```bash
-   adobe-aep schema list
+   aep schema list
    ```
 
 ## Additional Resources

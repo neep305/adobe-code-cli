@@ -56,8 +56,7 @@ aep = []  # AEP-specific dependencies (currently included in base)
 all = ["adobe-experience-cloud-cli[aep,data]"]
 
 [project.scripts]
-adobe = "adobe_experience.cli.main:app"
-adobe-aep = "adobe_experience.cli.legacy:legacy_aep_app"
+aep = "adobe_experience.cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/adobe_experience"]

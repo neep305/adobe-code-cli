@@ -70,7 +70,7 @@ pytest
 Run the interactive setup wizard:
 
 ```bash
-adobe init
+aep init
 ```
 
 This will guide you through:
@@ -84,13 +84,13 @@ For AI-powered features (schema generation, recommendations):
 
 ```bash
 # Set OpenAI key
-adobe ai set-key openai
+aep ai set-key openai
 
 # Or set Anthropic key
-adobe ai set-key anthropic
+aep ai set-key anthropic
 
 # Verify stored keys
-adobe ai list-keys
+aep ai list-keys
 ```
 
 ### 3. Try the Onboarding Tutorial
@@ -117,11 +117,11 @@ Test that all commands work:
 adobe version
 
 # Show help
-adobe --help
+aep --help
 
 # Test AEP commands
-adobe aep schema create --help
-adobe aep dataset list --help
+aep schema create --help
+aep dataset list --help
 
 # Test onboarding
 adobe onboarding status
@@ -192,7 +192,7 @@ pip uninstall adobe-experience-cloud-cli
 
 ## Next Steps
 
-1. Complete setup: `adobe init`
+1. Complete setup: `aep init`
 2. Try tutorials: `adobe onboarding start --dry-run`
 3. Read docs: [README.md](README.md)
-4. Create schemas: `adobe aep schema create --interactive`
+4. Create schemas: `aep schema create --interactive`

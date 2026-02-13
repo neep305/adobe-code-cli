@@ -2,7 +2,7 @@
 
 ## Pre-flight Checklist
 
-Before running `adobe aep schema upload-and-validate`, verify:
+Before running `aep schema upload-and-validate`, verify:
 
 ### 1. Authentication Setup
 
@@ -88,7 +88,7 @@ ls examples/validation-demo/actual_customers.json
 **Solution Option 1 (Quick - skip AI):**
 ```bash
 # Run without AI
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Test" \
   --from-sample examples/validation-demo/sample_customers.json \
   --validate-data examples/validation-demo/actual_customers.json \
@@ -108,7 +108,7 @@ adobe ai set-key anthropic
 
 **Solution Option 1 (Change name):**
 ```bash
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Customer Profile Demo v2" \  # Different name
   --from-sample examples/validation-demo/sample_customers.json \
   --validate-data examples/validation-demo/actual_customers.json
@@ -117,10 +117,10 @@ adobe aep schema upload-and-validate \
 **Solution Option 2 (Delete existing schema):**
 ```bash
 # List schemas to find ID
-adobe aep schema list
+aep schema list
 
 # Get full schema details
-adobe aep schema get <SCHEMA_ID>
+aep schema get <SCHEMA_ID>
 
 # Delete (if you're sure)
 # Note: This cannot be undone!
@@ -137,7 +137,7 @@ adobe aep schema get <SCHEMA_ID>
 pwd
 
 # Use absolute paths if needed
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Test" \
   --from-sample "C:/full/path/to/sample.json" \
   --validate-data "C:/full/path/to/actual.json"
@@ -181,7 +181,7 @@ Break down the workflow:
 
 ```bash
 # Step 1: Test schema creation (without upload)
-adobe aep schema create \
+aep schema create \
   --name "Test Schema" \
   --from-sample examples/validation-demo/sample_customers.json \
   --output test-schema.json
@@ -212,7 +212,7 @@ adobe auth test
 echo '[{"id": 1, "name": "test"}]' > test.json
 
 # 3. Run without AI
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Minimal Test" \
   --from-sample test.json \
   --validate-data test.json \

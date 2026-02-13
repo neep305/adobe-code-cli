@@ -6,7 +6,7 @@ The Data Ingestion module provides comprehensive file upload capabilities to Ado
 **Module**: `adobe_experience.ingestion`  
 **Status**: ✅ Complete (Phase 1)  
 **Test Coverage**: 98% (bulk_upload.py), 0% (progress_upload.py - integration only)  
-**CLI Commands**: 4 commands registered under `adobe aep ingest`
+**CLI Commands**: 4 commands registered under `aep ingest`
 
 ---
 
@@ -308,17 +308,17 @@ Queries Catalog Service `GET /datasets/{datasetId}/views/{batchId}/files` and se
 
 ## CLI Commands
 
-All commands available under `adobe aep ingest`:
+All commands available under `aep ingest`:
 
 ### 1. `upload-file` - Upload Single File
 
 ```bash
-adobe aep ingest upload-file <file_path> --batch <batch_id> [--name <custom_name>] [--progress/--no-progress]
+aep ingest upload-file <file_path> --batch <batch_id> [--name <custom_name>] [--progress/--no-progress]
 
 # Examples:
-adobe aep ingest upload-file customers.json --batch abc123
-adobe aep ingest upload-file data.csv --batch abc123 --name customers_v2.csv
-adobe aep ingest upload-file large.parquet --batch abc123 --no-progress
+aep ingest upload-file customers.json --batch abc123
+aep ingest upload-file data.csv --batch abc123 --name customers_v2.csv
+aep ingest upload-file large.parquet --batch abc123 --no-progress
 ```
 
 **Options:**
@@ -338,11 +338,11 @@ Batch ID: abc123
 ### 2. `upload-batch` - Upload Multiple Files
 
 ```bash
-adobe aep ingest upload-batch <file1> <file2> ... --batch <batch_id> [--concurrent <num>]
+aep ingest upload-batch <file1> <file2> ... --batch <batch_id> [--concurrent <num>]
 
 # Examples:
-adobe aep ingest upload-batch file1.json file2.json file3.json --batch abc123
-adobe aep ingest upload-batch *.json --batch abc123 --concurrent 5
+aep ingest upload-batch file1.json file2.json file3.json --batch abc123
+aep ingest upload-batch *.json --batch abc123 --concurrent 5
 ```
 
 **Options:**
@@ -368,12 +368,12 @@ Summary: 2/3 files uploaded successfully
 ### 3. `upload-directory` - Upload Directory
 
 ```bash
-adobe aep ingest upload-directory <directory> --batch <batch_id> [--pattern <glob>] [--recursive] [--concurrent <num>]
+aep ingest upload-directory <directory> --batch <batch_id> [--pattern <glob>] [--recursive] [--concurrent <num>]
 
 # Examples:
-adobe aep ingest upload-directory ./data --batch abc123 --pattern "*.json"
-adobe aep ingest upload-directory ./exports --batch abc123 --recursive --concurrent 5
-adobe aep ingest upload-directory ./batch_data --batch abc123 --pattern "*.csv"
+aep ingest upload-directory ./data --batch abc123 --pattern "*.json"
+aep ingest upload-directory ./exports --batch abc123 --recursive --concurrent 5
+aep ingest upload-directory ./batch_data --batch abc123 --pattern "*.csv"
 ```
 
 **Options:**
@@ -390,11 +390,11 @@ Same rich table as `upload-batch`, showing relative paths from directory.
 ### 4. `status` - Check Upload Status
 
 ```bash
-adobe aep ingest status <batch_id> [--file <file_name>]
+aep ingest status <batch_id> [--file <file_name>]
 
 # Examples:
-adobe aep ingest status abc123
-adobe aep ingest status abc123 --file customers.json
+aep ingest status abc123
+aep ingest status abc123 --file customers.json
 ```
 
 **Options:**

@@ -13,9 +13,19 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.prompt import Confirm, Prompt, IntPrompt
 
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
+
 console = Console()
 schema_app = typer.Typer(help="XDM schema management commands")
 template_app = typer.Typer(help="Schema template management")
+
+# Register command group metadata
+register_command_group_metadata("schema", CommandCategory.HYBRID, "Schema operations (API + AI)")
+register_command_group_metadata("template", CommandCategory.ENHANCED, "Schema template management")
 
 
 def _get_workspace_output_dir() -> tuple[Path, Path]:
@@ -71,6 +81,7 @@ def _generate_default_output_path(dataset_dir: Path, format_type: str) -> Path:
     return output_dir / filename
 
 
+@command_metadata(CommandCategory.HYBRID, "Create XDM schema (supports AI generation)")
 @schema_app.command("create")
 def create_schema(
     name: str = typer.Option(..., "--name", "-n", help="Schema name"),
@@ -117,9 +128,9 @@ def create_schema(
     """Create XDM schema from sample data or interactively with AI.
 
     Examples:
-        adobe aep schema create --name "Customer Events" --from-sample data.json
-        adobe aep schema create -n "Customer Profile" -f customers.json --use-ai --upload
-        adobe aep schema create -n "Loyalty Program" --interactive
+        aep schema create --name "Customer Events" --from-sample data.json
+        aep schema create -n "Customer Profile" -f customers.json --use-ai --upload
+        aep schema create -n "Loyalty Program" --interactive
     """
     # Interactive mode - no file required
     if interactive:
@@ -208,6 +219,17 @@ def create_schema(
         if output:
             output.write_text(json.dumps(schema_json, indent=2), encoding="utf-8")
             console.print(f"\n[green]✓[/green] Schema saved to {output}")
+        
+        # Update onboarding progress for schema creation (local)
+        if not upload:
+            try:
+                from adobe_experience.cli.onboarding import update_onboarding_progress
+                from adobe_experience.core.config import Milestone
+                
+                if update_onboarding_progress("schema", Milestone.FIRST_SCHEMA):
+                    console.print("[dim]✨ Onboarding progress updated[/dim]")
+            except Exception:
+                pass
 
         # Upload to AEP
         if upload:
@@ -243,6 +265,18 @@ def create_schema(
 
                 console.print(f"[green]✓[/green] Schema uploaded successfully!")
                 console.print(f"  Schema ID: [cyan]{uploaded_schema.get('$id', 'N/A')}[/cyan]")
+                
+                # Update onboarding progress for schema upload
+                try:
+                    from adobe_experience.cli.onboarding import update_onboarding_progress
+                    from adobe_experience.core.config import Milestone
+                    
+                    # Mark both schema and upload_schema steps complete
+                    update_onboarding_progress("schema", Milestone.FIRST_SCHEMA)
+                    if update_onboarding_progress("upload_schema"):
+                        console.print("[dim]✨ Onboarding progress updated[/dim]")
+                except Exception:
+                    pass
 
             except Exception as e:
                 console.print(f"\n[red]✗ Upload failed: {e}[/red]")
@@ -253,6 +287,7 @@ def create_schema(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "List schemas from Schema Registry")
 @schema_app.command("list")
 def list_schemas(
     limit: int = typer.Option(10, "--limit", "-l", help="Number of schemas to display"),
@@ -260,8 +295,8 @@ def list_schemas(
     """List XDM schemas from Adobe Experience Platform.
 
     Examples:
-        adobe aep schema list
-        adobe aep schema list --limit 20
+        aep schema list
+        aep schema list --limit 20
     """
     try:
         from adobe_experience.aep.client import AEPClient
@@ -305,6 +340,7 @@ def list_schemas(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Get schema details by ID")
 @schema_app.command("get")
 def get_schema(
     schema_id: str = typer.Argument(..., help="Schema ID or name"),
@@ -318,8 +354,8 @@ def get_schema(
     """Get details of a specific XDM schema.
 
     Examples:
-        adobe aep schema get <schema-id>
-        adobe aep schema get <schema-id> --output schema.json
+        aep schema get <schema-id>
+        aep schema get <schema-id> --output schema.json
     """
     try:
         from adobe_experience.aep.client import AEPClient
@@ -357,6 +393,7 @@ def get_schema(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "List field groups from Schema Registry")
 @schema_app.command("list-fieldgroups")
 def list_field_groups(
     limit: int = typer.Option(10, "--limit", "-l", help="Number of field groups to display"),
@@ -365,8 +402,8 @@ def list_field_groups(
     """List field groups from Adobe Experience Platform.
 
     Examples:
-        adobe aep schema list-fieldgroups
-        adobe aep schema list-fieldgroups --limit 20 --container global
+        aep schema list-fieldgroups
+        aep schema list-fieldgroups --limit 20 --container global
     """
     try:
         from adobe_experience.aep.client import AEPClient
@@ -410,6 +447,7 @@ def list_field_groups(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Get field group details by ID")
 @schema_app.command("get-fieldgroup")
 def get_field_group(
     field_group_id: str = typer.Argument(..., help="Field group ID"),
@@ -419,8 +457,8 @@ def get_field_group(
     """Get a specific field group by ID.
 
     Examples:
-        adobe aep schema get-fieldgroup <FIELD_GROUP_ID>
-        adobe aep schema get-fieldgroup <ID> --output fieldgroup.json
+        aep schema get-fieldgroup <FIELD_GROUP_ID>
+        aep schema get-fieldgroup <ID> --output fieldgroup.json
     """
     try:
         from adobe_experience.aep.client import AEPClient
@@ -458,6 +496,7 @@ def get_field_group(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.ENHANCED, "Upload schema with AI validation")
 @schema_app.command("upload-and-validate")
 def upload_and_validate(
     name: str = typer.Option(..., "--name", "-n", help="Schema name"),
@@ -480,7 +519,7 @@ def upload_and_validate(
     4. Shows detailed validation report with AI insights
 
     Examples:
-        adobe aep schema upload-and-validate \\
+        aep schema upload-and-validate \\
             --name "Customer Profile" \\
             --from-sample sample.json \\
             --validate-data actual_customers.json \\
@@ -611,6 +650,17 @@ def upload_and_validate(
         schema_id = uploaded_schema.get("$id", "unknown")
         console.print(f"[green]✓[/green] Schema uploaded successfully!")
         console.print(f"  Schema ID: [cyan]{schema_id}[/cyan]")
+        
+        # Update onboarding progress for schema upload
+        try:
+            from adobe_experience.cli.onboarding import update_onboarding_progress
+            from adobe_experience.core.config import Milestone
+            
+            update_onboarding_progress("schema", Milestone.FIRST_SCHEMA)
+            if update_onboarding_progress("upload_schema"):
+                console.print("[dim]✨ Onboarding progress updated[/dim]")
+        except Exception:
+            pass
 
         # Step 3: Load validation data and validate
         console.print("\n[bold]Step 3: Validating Data[/bold]")
@@ -642,7 +692,7 @@ def upload_and_validate(
         # Provide specific guidance for common errors
         if "401" in error_msg or "Unauthorized" in error_msg or "authentication" in error_msg.lower():
             console.print("\n[yellow]Authentication failed. Please check:[/yellow]")
-            console.print("  1. Run 'adobe auth test' to verify credentials")
+            console.print("  1. Run 'aep auth test' to verify credentials")
             console.print("  2. Check your .env file has valid AEP credentials")
             console.print("  3. Ensure your Adobe Developer Console project has Schema Registry permissions")
         elif "403" in error_msg or "Forbidden" in error_msg:
@@ -655,7 +705,7 @@ def upload_and_validate(
             console.print("  2. The API endpoint is accessible")
         elif "AI" in error_msg or "Anthropic" in error_msg or "OpenAI" in error_msg:
             console.print("\n[yellow]AI service error. Please check:[/yellow]")
-            console.print("  1. Run 'adobe ai list-keys' to verify API keys")
+            console.print("  1. Run 'aep ai list-keys' to verify API keys")
             console.print("  2. Try running without --use-ai flag")
         
         if "--verbose" not in error_msg:
@@ -744,6 +794,7 @@ def _display_validation_report(report) -> None:
             console.print(f"[dim]... and {len(report.issues) - 30} more issues[/dim]\n")
 
 
+@command_metadata(CommandCategory.ENHANCED, "AI-powered dataset relationship analysis")
 @schema_app.command("analyze-dataset")
 def analyze_dataset(
     dataset_dir: Path = typer.Option(
@@ -780,7 +831,7 @@ def analyze_dataset(
     identity strategies for Adobe Experience Platform schema design.
     
     Example:
-        adobe aep schema analyze-dataset --dir test-data/ecommerce/
+        aep schema analyze-dataset --dir test-data/ecommerce/
     """
     from adobe_experience.agent.inference import AIInferenceEngine
     from adobe_experience.core.config import get_config
@@ -1494,12 +1545,13 @@ def _create_schema_interactive(
 # Template Management Commands
 # ===========================
 
+@command_metadata(CommandCategory.ENHANCED, "List saved schema templates")
 @template_app.command("list")
 def list_templates() -> None:
     """List all available schema templates.
     
     Examples:
-        adobe aep schema template list
+        aep schema template list
     """
     from adobe_experience.schema.templates import TemplateManager
     
@@ -1534,6 +1586,7 @@ def list_templates() -> None:
     console.print(f"\n[dim]Total: {len(templates)} templates[/dim]")
 
 
+@command_metadata(CommandCategory.ENHANCED, "Show schema template details")
 @template_app.command("show")
 def show_template(
     name: str = typer.Argument(..., help="Template name"),
@@ -1541,7 +1594,7 @@ def show_template(
     """Show detailed information about a template.
     
     Examples:
-        adobe aep schema template show customer-profile
+        aep schema template show customer-profile
     """
     from adobe_experience.schema.templates import TemplateManager
     
@@ -1586,6 +1639,7 @@ def show_template(
         console.print(table)
 
 
+@command_metadata(CommandCategory.ENHANCED, "Save schema as reusable template")
 @template_app.command("save")
 def save_template(
     name: str = typer.Argument(..., help="Template name"),
@@ -1602,7 +1656,7 @@ def save_template(
     """Save a schema as a template for reuse.
     
     Examples:
-        adobe aep schema template save my-template --from-file schema.json --title "My Custom Template"
+        aep schema template save my-template --from-file schema.json --title "My Custom Template"
     """
     from adobe_experience.schema.templates import TemplateManager
     from adobe_experience.schema.models import SchemaTemplate
@@ -1659,6 +1713,7 @@ def save_template(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.ENHANCED, "Delete schema template")
 @template_app.command("delete")
 def delete_template(
     name: str = typer.Argument(..., help="Template name"),
@@ -1667,8 +1722,8 @@ def delete_template(
     """Delete a custom template.
     
     Examples:
-        adobe aep schema template delete my-template
-        adobe aep schema template delete my-template --yes
+        aep schema template delete my-template
+        aep schema template delete my-template --yes
     """
     from adobe_experience.schema.templates import TemplateManager
     

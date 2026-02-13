@@ -7,19 +7,19 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
-init_app = typer.Typer(help="Initialize and configure Adobe AEP Agent")
+init_app = typer.Typer(help="Initialize and configure aep Agent")
 console = Console()
 
 
 @init_app.command()
 def setup() -> None:
-    """Interactive setup wizard for Adobe AEP credentials.
+    """Interactive setup wizard for aep credentials.
     
     This will guide you through setting up your Adobe Developer Console
     credentials and create a .env file for configuration.
     
     Examples:
-        adobe-aep init
+        aep init
     """
     # ASCII art banner
     banner = """
@@ -114,7 +114,7 @@ def setup() -> None:
             openai_key = Prompt.ask("OpenAI API Key", default="")
         
         if ai_provider != "skip":
-            console.print(f"\n[dim]Tip: You can change AI keys later with 'adobe ai set-key'[/dim]")
+            console.print(f"\n[dim]Tip: You can change AI keys later with 'aep ai set-key'[/dim]")
     
     # Create .env file
     env_content = f"""# Adobe Experience Platform Credentials
@@ -146,15 +146,26 @@ OPENAI_API_KEY={openai_key}
     
     if not anthropic_key and not openai_key and use_ai:
         console.print("\n[yellow]⚠ Warning: No AI API keys configured[/yellow]")
-        console.print("[dim]  AI features will be disabled. Run 'adobe ai set-key' to add them later[/dim]")
+        console.print("[dim]  AI features will be disabled. Run 'aep ai set-key' to add them later[/dim]")
     
     console.print("\n[bold]Next Steps:[/bold]")
-    console.print("1. Run: [cyan]adobe auth test[/cyan] - Test your connection")
-    console.print("2. Run: [cyan]adobe aep schema list[/cyan] - List existing schemas")
-    console.print("3. Run: [cyan]adobe aep schema create --help[/cyan] - Create new schemas")
+    console.print("1. Run: [cyan]aep auth test[/cyan] - Test your connection")
+    console.print("2. Run: [cyan]aep schema list[/cyan] - List existing schemas")
+    console.print("3. Run: [cyan]aep schema create --help[/cyan] - Create new schemas")
     
     if use_ai and (anthropic_key or openai_key):
-        console.print("4. Run: [cyan]adobe ai list-keys[/cyan] - View AI configuration")
+        console.print("4. Run: [cyan]aep ai list-keys[/cyan] - View AI configuration")
     
     console.print("\n[dim]Tip: Never commit .env file to version control![/dim]")
-    console.print("[dim]Tip: Use 'adobe ai set-key' to update AI keys anytime[/dim]")
+    console.print("[dim]Tip: Use 'aep ai set-key' to update AI keys anytime[/dim]")
+    
+    # Update onboarding progress if active
+    try:
+        from adobe_experience.cli.onboarding import update_onboarding_progress
+        from adobe_experience.core.config import Milestone
+        
+        if update_onboarding_progress("auth", Milestone.FIRST_AUTH):
+            console.print("\n[dim]✨ Onboarding progress updated[/dim]")
+    except Exception:
+        # Silently ignore if onboarding is not active
+        pass

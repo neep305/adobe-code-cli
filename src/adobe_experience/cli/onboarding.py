@@ -1,6 +1,9 @@
 """Onboarding tutorial CLI commands."""
 
 import asyncio
+import json
+from pathlib import Path
+from typing import Dict, Set, Optional
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -9,6 +12,11 @@ from rich.table import Table
 from rich.tree import Tree
 from rich.progress import Progress, BarColumn, TextColumn, SpinnerColumn
 
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
 from adobe_experience.core.config import (
     OnboardingState,
     TutorialScenario,
@@ -25,8 +33,131 @@ console = Console()
 onboarding_app = typer.Typer(
     name="onboarding",
     help="Interactive onboarding tutorials",
-    rich_markup_mode="rich",
 )
+
+# Register command group metadata
+register_command_group_metadata("onboarding", CommandCategory.ENHANCED, "Interactive AI-powered tutorials")
+
+
+def detect_completed_steps(scenario: Optional[TutorialScenario] = None) -> Dict[str, Milestone]:
+    """Auto-detect which onboarding steps are already completed based on system state.
+    
+    Checks:
+    - .env file exists with required AEP credentials → auth step
+    - ~/.adobe/ai-credentials.json exists with valid API keys → ai_provider step
+    
+    Args:
+        scenario: Tutorial scenario to check steps for. If None, checks all common steps.
+    
+    Returns:
+        Dict mapping step keys to their associated milestones
+    """
+    completed = {}
+    
+    # Check AEP authentication (.env file)
+    env_path = Path(".env")
+    if env_path.exists():
+        try:
+            env_content = env_path.read_text(encoding="utf-8")
+            # Check for required AEP credentials
+            required_fields = [
+                "AEP_CLIENT_ID",
+                "AEP_CLIENT_SECRET",
+                "AEP_ORG_ID",
+                "AEP_TECHNICAL_ACCOUNT_ID"
+            ]
+            
+            has_all_fields = all(
+                field in env_content and f"{field}=" in env_content
+                for field in required_fields
+            )
+            
+            # Check that fields have actual values (not empty)
+            if has_all_fields:
+                has_values = True
+                for field in required_fields:
+                    # Find the line with this field
+                    for line in env_content.split("\n"):
+                        if line.strip().startswith(field + "="):
+                            value = line.split("=", 1)[1].strip()
+                            if not value or value == "":
+                                has_values = False
+                                break
+                    if not has_values:
+                        break
+                
+                if has_values:
+                    completed["auth"] = Milestone.FIRST_AUTH
+        except Exception:
+            pass
+    
+    # Check AI provider configuration
+    ai_creds_file = Path.home() / ".adobe" / "ai-credentials.json"
+    if ai_creds_file.exists():
+        try:
+            creds = json.loads(ai_creds_file.read_text(encoding="utf-8"))
+            # Check if at least one provider has an API key
+            has_api_key = False
+            
+            if "openai" in creds and isinstance(creds["openai"], dict):
+                api_key = creds["openai"].get("api_key", "")
+                if api_key and api_key.strip():
+                    has_api_key = True
+            
+            if "anthropic" in creds and isinstance(creds["anthropic"], dict):
+                api_key = creds["anthropic"].get("api_key", "")
+                if api_key and api_key.strip():
+                    has_api_key = True
+            
+            if has_api_key:
+                completed["ai_provider"] = Milestone.AI_CONFIGURED
+        except Exception:
+            pass
+    
+    return completed
+
+
+def update_onboarding_progress(step_key: str, milestone: Optional[Milestone] = None) -> bool:
+    """Update onboarding progress when a step is completed outside the tutorial flow.
+    
+    Args:
+        step_key: The step key (e.g., 'auth', 'ai_provider')
+        milestone: Optional milestone to award
+    
+    Returns:
+        True if state was updated, False if no onboarding in progress
+    """
+    state = load_onboarding_state()
+    
+    # Only update if onboarding is active
+    if not state.scenario:
+        return False
+    
+    # Get steps for current scenario
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    
+    # Find step number by key
+    step_num = None
+    for idx, step_info in enumerate(steps, start=1):
+        if step_info["key"] == step_key:
+            step_num = idx
+            break
+    
+    if step_num is None:
+        return False
+    
+    # Mark step as completed if not already
+    if step_num not in state.completed_steps:
+        state.completed_steps.append(step_num)
+        state.completed_steps.sort()
+    
+    # Award milestone if provided
+    if milestone and milestone not in state.milestones_achieved:
+        state.milestones_achieved.append(milestone)
+    
+    # Save state
+    return state.save()
+
 
 # Tutorial step definitions
 TUTORIAL_STEPS = {
@@ -37,7 +168,7 @@ TUTORIAL_STEPS = {
             "name_ko": "1단계: 인증 설정",
             "description_en": "Configure Adobe Experience Platform credentials",
             "description_ko": "Adobe Experience Platform 자격 증명 구성",
-            "command": "adobe aep init",
+            "command": "aep init",
         },
         {
             "key": "ai_provider",
@@ -45,7 +176,7 @@ TUTORIAL_STEPS = {
             "name_ko": "2단계: AI 프로바이더 설정",
             "description_en": "Set up Anthropic or OpenAI API key for AI features",
             "description_ko": "AI 기능을 위한 Anthropic 또는 OpenAI API 키 설정",
-            "command": "adobe ai set-key anthropic",
+            "command": "aep ai set-key anthropic",
         },
         {
             "key": "schema",
@@ -53,7 +184,7 @@ TUTORIAL_STEPS = {
             "name_ko": "3단계: 스키마 생성",
             "description_en": "Design and create XDM schemas for your data",
             "description_ko": "데이터를 위한 XDM 스키마 설계 및 생성",
-            "command": "adobe aep schema create --name MySchema --interactive",
+            "command": "aep schema create --name MySchema --interactive",
         },
         {
             "key": "upload_schema",
@@ -61,7 +192,7 @@ TUTORIAL_STEPS = {
             "name_ko": "4단계: AEP에 스키마 업로드",
             "description_en": "Register your schema in Adobe Experience Platform",
             "description_ko": "Adobe Experience Platform에 스키마 등록",
-            "command": "adobe aep schema create --name MySchema --from-sample data.json --upload",
+            "command": "aep schema create --name MySchema --from-sample data.json --upload",
         },
         {
             "key": "dataset",
@@ -69,7 +200,7 @@ TUTORIAL_STEPS = {
             "name_ko": "5단계: 데이터셋 생성",
             "description_en": "Set up datasets linked to your schemas",
             "description_ko": "스키마와 연결된 데이터셋 설정",
-            "command": "adobe aep dataset list",
+            "command": "aep dataset list",
         },
         {
             "key": "ingest",
@@ -77,7 +208,7 @@ TUTORIAL_STEPS = {
             "name_ko": "6단계: 데이터 수집",
             "description_en": "Upload data to Adobe Experience Platform",
             "description_ko": "Adobe Experience Platform에 데이터 업로드",
-            "command": "adobe aep dataset upload --dataset-id <id> --file data.csv",
+            "command": "aep dataset upload --dataset-id <id> --file data.csv",
         },
     ],
     "data-engineer": [
@@ -87,7 +218,7 @@ TUTORIAL_STEPS = {
             "name_ko": "1단계: 인증 설정",
             "description_en": "Configure AEP credentials with production access",
             "description_ko": "프로덕션 액세스를 위한 AEP 자격 증명 구성",
-            "command": "adobe aep init",
+            "command": "aep init",
         },
         {
             "key": "ai_provider",
@@ -95,7 +226,7 @@ TUTORIAL_STEPS = {
             "name_ko": "2단계: AI 프로바이더 설정",
             "description_en": "Set up AI provider for schema generation and validation",
             "description_ko": "스키마 생성 및 검증을 위한 AI 프로바이더 설정",
-            "command": "adobe ai set-key anthropic",
+            "command": "aep ai set-key anthropic",
         },
         {
             "key": "analyze_data",
@@ -103,7 +234,7 @@ TUTORIAL_STEPS = {
             "name_ko": "3단계: 기존 데이터 분석",
             "description_en": "Scan and analyze your data sources",
             "description_ko": "데이터 소스 스캔 및 분석",
-            "command": "adobe aep schema analyze --directory ./data",
+            "command": "aep schema analyze --directory ./data",
         },
         {
             "key": "schema_design",
@@ -111,7 +242,7 @@ TUTORIAL_STEPS = {
             "name_ko": "4단계: 스키마 설계",
             "description_en": "Create XDM schemas from sample data with AI assistance",
             "description_ko": "AI 지원을 통한 샘플 데이터로부터 XDM 스키마 생성",
-            "command": "adobe aep schema create --from-sample data.json --use-ai",
+            "command": "aep schema create --from-sample data.json --use-ai",
         },
         {
             "key": "schema_validation",
@@ -119,7 +250,7 @@ TUTORIAL_STEPS = {
             "name_ko": "5단계: 스키마 검증",
             "description_en": "Validate schemas against XDM standards",
             "description_ko": "XDM 표준에 대한 스키마 검증",
-            "command": "adobe aep schema validate --file schema.json",
+            "command": "aep schema validate --file schema.json",
         },
         {
             "key": "upload_schema",
@@ -127,7 +258,7 @@ TUTORIAL_STEPS = {
             "name_ko": "6단계: AEP에 스키마 업로드",
             "description_en": "Register schemas in Adobe Experience Platform",
             "description_ko": "Adobe Experience Platform에 스키마 등록",
-            "command": "adobe aep schema upload --file schema.json",
+            "command": "aep schema upload --file schema.json",
         },
         {
             "key": "dataset_creation",
@@ -135,7 +266,7 @@ TUTORIAL_STEPS = {
             "name_ko": "7단계: 데이터셋 생성",
             "description_en": "Create datasets linked to your schemas",
             "description_ko": "스키마와 연결된 데이터셋 생성",
-            "command": "adobe aep dataset create --schema-id <id> --name MyDataset",
+            "command": "aep dataset create --schema-id <id> --name MyDataset",
         },
         {
             "key": "batch_ingestion",
@@ -143,7 +274,7 @@ TUTORIAL_STEPS = {
             "name_ko": "8단계: 배치 데이터 수집",
             "description_en": "Upload large datasets using batch ingestion",
             "description_ko": "배치 수집을 사용한 대용량 데이터셋 업로드",
-            "command": "adobe aep dataset upload --dataset-id <id> --file data.csv --batch-size 10000",
+            "command": "aep dataset upload --dataset-id <id> --file data.csv --batch-size 10000",
         },
         {
             "key": "monitoring",
@@ -151,7 +282,7 @@ TUTORIAL_STEPS = {
             "name_ko": "9단계: 수집 상태 모니터링",
             "description_en": "Check batch ingestion status and troubleshoot",
             "description_ko": "배치 수집 상태 확인 및 문제 해결",
-            "command": "adobe aep dataset status --batch-id <id>",
+            "command": "aep dataset status --batch-id <id>",
         },
     ],
     "marketer": [
@@ -161,7 +292,7 @@ TUTORIAL_STEPS = {
             "name_ko": "1단계: 인증 설정",
             "description_en": "Connect to Adobe Experience Platform",
             "description_ko": "Adobe Experience Platform 연결",
-            "command": "adobe aep init",
+            "command": "aep init",
         },
         {
             "key": "ai_provider",
@@ -169,7 +300,7 @@ TUTORIAL_STEPS = {
             "name_ko": "2단계: AI 프로바이더 설정",
             "description_en": "Enable AI-powered features",
             "description_ko": "AI 기반 기능 활성화",
-            "command": "adobe ai set-key anthropic",
+            "command": "aep ai set-key anthropic",
         },
         {
             "key": "customer_schema",
@@ -177,7 +308,7 @@ TUTORIAL_STEPS = {
             "name_ko": "3단계: 고객 프로필 스키마 생성",
             "description_en": "Design schema for customer data",
             "description_ko": "고객 데이터를 위한 스키마 설계",
-            "command": "adobe aep schema create --name CustomerProfile --interactive",
+            "command": "aep schema create --name CustomerProfile --interactive",
         },
         {
             "key": "event_schema",
@@ -185,7 +316,7 @@ TUTORIAL_STEPS = {
             "name_ko": "4단계: 이벤트 스키마 생성",
             "description_en": "Design schema for customer events and interactions",
             "description_ko": "고객 이벤트 및 상호작용을 위한 스키마 설계",
-            "command": "adobe aep schema create --name CustomerEvents --interactive",
+            "command": "aep schema create --name CustomerEvents --interactive",
         },
         {
             "key": "upload_schemas",
@@ -193,7 +324,7 @@ TUTORIAL_STEPS = {
             "name_ko": "5단계: AEP에 스키마 업로드",
             "description_en": "Register schemas in Adobe Experience Platform",
             "description_ko": "Adobe Experience Platform에 스키마 등록",
-            "command": "adobe aep schema upload --file schema.json",
+            "command": "aep schema upload --file schema.json",
         },
         {
             "key": "import_data",
@@ -201,7 +332,7 @@ TUTORIAL_STEPS = {
             "name_ko": "6단계: 고객 데이터 가져오기",
             "description_en": "Upload customer profiles and historical data",
             "description_ko": "고객 프로필 및 과거 데이터 업로드",
-            "command": "adobe aep dataset upload --dataset-id <id> --file customers.csv",
+            "command": "aep dataset upload --dataset-id <id> --file customers.csv",
         },
         {
             "key": "segments",
@@ -209,7 +340,7 @@ TUTORIAL_STEPS = {
             "name_ko": "7단계: 오디언스 세그먼트 생성",
             "description_en": "Define customer segments for targeting",
             "description_ko": "타겟팅을 위한 고객 세그먼트 정의",
-            "command": "adobe aep segment create --name HighValueCustomers",
+            "command": "aep segment create --name HighValueCustomers",
         },
         {
             "key": "activation",
@@ -217,12 +348,13 @@ TUTORIAL_STEPS = {
             "name_ko": "8단계: 대상 활성화",
             "description_en": "Connect to marketing channels and activate segments",
             "description_ko": "마케팅 채널 연결 및 세그먼트 활성화",
-            "command": "adobe aep destination activate --segment-id <id>",
+            "command": "aep destination activate --segment-id <id>",
         },
     ],
 }
 
 
+@command_metadata(CommandCategory.ENHANCED, "Start interactive tutorial")
 @onboarding_app.command("start")
 def start_tutorial(
     scenario: str = typer.Option(
@@ -247,17 +379,50 @@ def start_tutorial(
         "-l",
         help="Language (en, ko)",
     ),
+    reset: bool = typer.Option(
+        False,
+        "--reset",
+        help="Reset and start from beginning",
+    ),
 ) -> None:
-    """Start interactive onboarding tutorial.
+    """Start or continue onboarding tutorial.
+    
+    Automatically resumes if a tutorial is in progress. Use --reset to start over.
 
     Examples:
-        adobe onboarding start
-        adobe onboarding start --scenario basic
-        adobe onboarding start --dry-run
-        adobe onboarding start --language ko
+        aep onboarding start
+        aep onboarding start --scenario basic
+        aep onboarding start --dry-run
+        aep onboarding start --language ko
+        aep onboarding start --reset
     """
     # Load or create onboarding state
     state = load_onboarding_state()
+    
+    # Check if tutorial is already in progress
+    if state.scenario and not reset and not scenario:
+        steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+        total_steps = len(steps)
+        completed_count = len(state.completed_steps)
+        
+        console.print(f"\n[yellow]⚠  Tutorial in progress: {state.scenario.value}[/yellow]")
+        console.print(f"[dim]Progress: {completed_count}/{total_steps} steps completed[/dim]\n")
+        
+        if not Confirm.ask("Continue from where you left off?", default=True):
+            if Confirm.ask("Start a new tutorial instead?", default=False):
+                reset = True
+            else:
+                console.print("[yellow]Cancelled[/yellow]")
+                return
+    
+    # Reset if requested
+    if reset:
+        from pathlib import Path
+        state_file = Path.home() / ".adobe" / "onboarding_progress.json"
+        if state_file.exists():
+            state_file.unlink()
+        state = load_onboarding_state()
+        console.print("[green]✓ Progress reset[/green]\n")
 
     # Language selection
     if not language:
@@ -347,13 +512,14 @@ def start_tutorial(
     # Start tutorial workflow
     console.print(f"\n[bold green]✓[/bold green] {t('onboarding.messages.step_complete', language)}\n")
     console.print(
-        f"[dim]Use [cyan]adobe onboarding status[/cyan] to check progress[/dim]"
+        f"[dim]Use [cyan]aep onboarding status[/cyan] to check progress[/dim]"
     )
     console.print(
-        f"[dim]Use [cyan]adobe onboarding resume[/cyan] to continue[/dim]"
+        f"[dim]Use [cyan]aep onboarding manage[/cyan] to control steps manually[/dim]"
     )
 
 
+@command_metadata(CommandCategory.ENHANCED, "View tutorial progress")
 @onboarding_app.command("status")
 def show_status() -> None:
     """Show onboarding progress and status.
@@ -367,6 +533,33 @@ def show_status() -> None:
         console.print("[yellow]No onboarding in progress[/yellow]")
         console.print("Start with: [cyan]adobe onboarding start[/cyan]")
         return
+
+    # Auto-detect completed steps and sync state
+    detected_steps = detect_completed_steps(state.scenario)
+    
+    if detected_steps:
+        # Get steps for current scenario
+        steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+        
+        # Check for new completions
+        synced_items = []
+        for step_key, milestone in detected_steps.items():
+            # Find step number
+            for idx, step_info in enumerate(steps, start=1):
+                if step_info["key"] == step_key and idx not in state.completed_steps:
+                    state.completed_steps.append(idx)
+                    synced_items.append(step_key)
+                    
+                    # Award milestone if not already achieved
+                    if milestone not in state.milestones_achieved:
+                        state.milestones_achieved.append(milestone)
+                    break
+        
+        # Save if any changes were made
+        if synced_items:
+            state.completed_steps.sort()
+            state.save()
+            console.print(f"[dim]✨ Auto-detected and synced: {', '.join(synced_items)}[/dim]\n")
 
     i18n = get_i18n(state.language)
 
@@ -466,11 +659,219 @@ def show_status() -> None:
         for milestone in state.milestones_achieved:
             milestone_text = t(f"onboarding.milestones.{milestone.value.replace('-', '_')}", state.language)
             console.print(f"  {milestone_text}")
-
+    
+    # Tips
+    console.print()
+    console.print("[dim]💡 Tip: Use 'aep onboarding manage' to manually control step progress[/dim]")
     console.print()
 
 
-@onboarding_app.command("next")
+@command_metadata(CommandCategory.ENHANCED, "Manage tutorial state")
+@onboarding_app.command("manage")
+def manage_steps() -> None:
+    """Interactively manage tutorial steps - mark complete/incomplete.
+    
+    Allows manual control over which steps are marked as completed,
+    useful for non-sequential workflows or correcting progress.
+    
+    Examples:
+        aep onboarding manage
+    """
+    import time
+    
+    state = load_onboarding_state()
+    
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]aep onboarding start[/cyan]")
+        return
+    
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    
+    while True:
+        # Clear screen (works in most terminals)
+        console.print("\n" * 2)
+        console.print("[bold cyan]═══ Step Management ═══[/bold cyan]\n")
+        console.print(f"[dim]Scenario: {state.scenario.value}[/dim]\n")
+        
+        # Display steps with status
+        for idx, step_info in enumerate(steps, start=1):
+            status = "[green]✅[/green]" if idx in state.completed_steps else "[dim]⬜[/dim]"
+            name = step_info.get(name_key, step_info["name_en"])
+            console.print(f"{status} {idx}. {name}")
+        
+        console.print("\n[dim]Enter step number to toggle, 'q' to save and quit[/dim]")
+        choice = Prompt.ask("[cyan]>[/cyan]", default="q")
+        
+        if choice.lower() == 'q':
+            state.save()
+            console.print("\n[green]✓ Progress saved![/green]")
+            break
+        
+        try:
+            step_num = int(choice)
+            if 1 <= step_num <= len(steps):
+                step_name = steps[step_num - 1].get(name_key, steps[step_num - 1]["name_en"])
+                
+                if step_num in state.completed_steps:
+                    state.completed_steps.remove(step_num)
+                    # Also remove from skipped if present
+                    if step_num in state.skipped_steps:
+                        state.skipped_steps.remove(step_num)
+                    console.print(f"\n[yellow]○ Step {step_num} marked as incomplete[/yellow]")
+                else:
+                    if step_num not in state.completed_steps:
+                        state.completed_steps.append(step_num)
+                        state.completed_steps.sort()
+                    # Remove from skipped if present
+                    if step_num in state.skipped_steps:
+                        state.skipped_steps.remove(step_num)
+                    console.print(f"\n[green]✓ Step {step_num} marked as complete[/green]")
+                
+                time.sleep(0.8)
+            else:
+                console.print(f"\n[red]Invalid step number. Please enter 1-{len(steps)}[/red]")
+                time.sleep(1)
+        except ValueError:
+            console.print("\n[red]Please enter a valid number or 'q' to quit[/red]")
+            time.sleep(1)
+
+
+@onboarding_app.command("complete", hidden=True)
+def mark_step_complete(
+    step: int = typer.Argument(..., help="Step number to mark as complete")
+) -> None:
+    """Mark a specific step as completed.
+    
+    Examples:
+        aep onboarding complete 3
+        aep onboarding complete 5
+    """
+    state = load_onboarding_state()
+    
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]aep onboarding start[/cyan]")
+        return
+    
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    
+    if step < 1 or step > len(steps):
+        console.print(f"[red]Invalid step number. Must be between 1 and {len(steps)}[/red]")
+        raise typer.Exit(1)
+    
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    step_name = steps[step - 1].get(name_key, steps[step - 1]["name_en"])
+    
+    if step not in state.completed_steps:
+        state.completed_steps.append(step)
+        state.completed_steps.sort()
+    
+    # Remove from skipped if present
+    if step in state.skipped_steps:
+        state.skipped_steps.remove(step)
+    
+    state.save()
+    console.print(f"[green]✓ Step {step} ({step_name}) marked as complete[/green]")
+
+
+@onboarding_app.command("uncomplete", hidden=True)
+def mark_step_uncomplete(
+    step: int = typer.Argument(..., help="Step number to mark as incomplete")
+) -> None:
+    """Mark a specific step as incomplete.
+    
+    Examples:
+        aep onboarding uncomplete 3
+    """
+    state = load_onboarding_state()
+    
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]aep onboarding start[/cyan]")
+        return
+    
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    
+    if step < 1 or step > len(steps):
+        console.print(f"[red]Invalid step number. Must be between 1 and {len(steps)}[/red]")
+        raise typer.Exit(1)
+    
+    name_key = f"name_{state.language}" if state.language in ["en", "ko"] else "name_en"
+    step_name = steps[step - 1].get(name_key, steps[step - 1]["name_en"])
+    
+    if step in state.completed_steps:
+        state.completed_steps.remove(step)
+    
+    state.save()
+    console.print(f"[yellow]○ Step {step} ({step_name}) marked as incomplete[/yellow]")
+
+
+@onboarding_app.command("sync", hidden=True)
+def sync_status() -> None:
+    """Manually sync onboarding status with actual system state.
+    
+    Detects which steps are already completed (e.g., authentication configured,
+    AI keys set) and updates the onboarding progress accordingly.
+    
+    Examples:
+        adobe onboarding sync
+    """
+    state = load_onboarding_state()
+
+    if not state.scenario:
+        console.print("[yellow]No onboarding in progress[/yellow]")
+        console.print("Start with: [cyan]adobe onboarding start[/cyan]")
+        return
+    
+    console.print("[cyan]🔍 Detecting completed steps...[/cyan]\n")
+    
+    # Detect completed steps
+    detected_steps = detect_completed_steps(state.scenario)
+    
+    if not detected_steps:
+        console.print("[yellow]No completed steps detected[/yellow]")
+        console.print("[dim]Make sure you have:")
+        console.print("  • Run 'aep init' to configure authentication")
+        console.print("  • Run 'aep ai set-key' to configure AI provider[/dim]")
+        return
+    
+    # Get steps for current scenario
+    steps = TUTORIAL_STEPS.get(state.scenario.value, TUTORIAL_STEPS["basic"])
+    
+    # Update state
+    synced_count = 0
+    synced_items = []
+    
+    for step_key, milestone in detected_steps.items():
+        # Find step number and info
+        for idx, step_info in enumerate(steps, start=1):
+            if step_info["key"] == step_key:
+                if idx not in state.completed_steps:
+                    state.completed_steps.append(idx)
+                    synced_count += 1
+                    synced_items.append(f"{step_info['name_en']} (Step {idx})")
+                
+                # Award milestone if not already achieved
+                if milestone not in state.milestones_achieved:
+                    state.milestones_achieved.append(milestone)
+                break
+    
+    # Save state
+    if synced_count > 0:
+        state.completed_steps.sort()
+        state.save()
+        
+        console.print(f"[green]✓ Synced {synced_count} step(s):[/green]")
+        for item in synced_items:
+            console.print(f"  • {item}")
+        console.print(f"\n[dim]Run 'adobe onboarding status' to see updated progress[/dim]")
+    else:
+        console.print("[green]✓ All detected steps already marked as complete[/green]")
+
+
+@onboarding_app.command("next", hidden=True)
 def next_step(
     mark_complete: bool = typer.Option(
         True,
@@ -551,7 +952,7 @@ def next_step(
     ))
 
 
-@onboarding_app.command("skip")
+@onboarding_app.command("skip", hidden=True)
 def skip_step() -> None:
     """Skip the current tutorial step without marking it as completed.
 
@@ -606,7 +1007,7 @@ def skip_step() -> None:
     console.print("Use [cyan]adobe onboarding status[/cyan] to see current progress")
 
 
-@onboarding_app.command("back")
+@onboarding_app.command("back", hidden=True)
 def back_step() -> None:
     """Go back to the previous tutorial step.
 
@@ -645,7 +1046,7 @@ def back_step() -> None:
     console.print("Use [cyan]adobe onboarding status[/cyan] to see current progress")
 
 
-@onboarding_app.command("resume")
+@onboarding_app.command("resume", hidden=True)
 def resume_tutorial() -> None:
     """Resume onboarding tutorial from last checkpoint.
 
@@ -665,7 +1066,7 @@ def resume_tutorial() -> None:
     console.print("[dim]Tutorial resume functionality coming soon[/dim]")
 
 
-@onboarding_app.command("achievements")
+@onboarding_app.command("achievements", hidden=True)
 def show_achievements() -> None:
     """Show earned achievements and milestones.
 
@@ -693,7 +1094,7 @@ def show_achievements() -> None:
     console.print()
 
 
-@onboarding_app.command("reset")
+@onboarding_app.command("reset", hidden=True)
 def reset_progress(
     confirm: bool = typer.Option(
         False,
@@ -724,7 +1125,7 @@ def reset_progress(
     console.print("[green]✓ Onboarding progress reset[/green]")
 
 
-@onboarding_app.command("ask")
+@onboarding_app.command("ask", hidden=True)
 def ask_ai_tutor(
     question: str = typer.Argument(..., help="Your question for the AI tutor"),
 ) -> None:
@@ -829,8 +1230,8 @@ def ask_ai_tutor(
         if "No AI provider configured" in str(e):
             console.print(f"\n[red]{t('errors.auth_failed', detected_language)}[/red]")
             console.print("[yellow]AI tutor requires an API key. Configure one with:[/yellow]")
-            console.print("  [cyan]adobe ai set-key anthropic[/cyan]")
-            console.print("  [cyan]adobe ai set-key openai[/cyan]")
+            console.print("  [cyan]aep ai set-key anthropic[/cyan]")
+            console.print("  [cyan]aep ai set-key openai[/cyan]")
         else:
             console.print(f"\n[red]Error: {e}[/red]")
         raise typer.Exit(1)
@@ -839,7 +1240,7 @@ def ask_ai_tutor(
         raise typer.Exit(1)
 
 
-@onboarding_app.command("clear-cache")
+@onboarding_app.command("clear-cache", hidden=True)
 def clear_qa_cache(
     confirm: bool = typer.Option(
         False,
@@ -882,7 +1283,7 @@ def clear_qa_cache(
     console.print("[dim]Future questions will require fresh AI calls[/dim]")
 
 
-@onboarding_app.command("cache-stats")
+@onboarding_app.command("cache-stats", hidden=True)
 def show_cache_stats() -> None:
     """Show AI tutor cache statistics.
 

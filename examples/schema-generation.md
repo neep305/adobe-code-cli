@@ -1,6 +1,6 @@
 # Schema Generation Example
 
-This example demonstrates how to generate XDM-compliant schemas from sample data using the Adobe AEP Agent.
+This example demonstrates how to generate XDM-compliant schemas from sample data using the aep Agent.
 
 ## Basic Schema Generation
 
@@ -29,13 +29,13 @@ print(schema_json)
 
 ```bash
 # Generate schema from JSON file
-adobe-aep schema create \
+aep schema create \
   --name "Customer Profile" \
   --from-sample customers.json \
   --description "Customer data schema"
 
 # Use AI inference for enhanced generation
-adobe-aep schema create \
+aep schema create \
   --name "Customer Events" \
   --from-sample events.json \
   --use-ai \

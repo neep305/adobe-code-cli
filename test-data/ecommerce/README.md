@@ -64,13 +64,13 @@ Transaction records with line items and fulfillment details.
 ### Basic Schema Generation
 ```bash
 # Generate customer profile schema
-adobe-aep schema create \
+aep schema create \
   --name "Customer Profile" \
   --from-sample test-data/ecommerce/customers.json \
   --output schemas/customer-profile.json
 
 # Generate event schema with AI recommendations
-adobe-aep schema create \
+aep schema create \
   --name "Customer Events" \
   --from-sample test-data/ecommerce/events.json \
   --use-ai \
@@ -80,13 +80,13 @@ adobe-aep schema create \
 ### Multi-Entity Schema Design
 ```bash
 # Product catalog schema
-adobe-aep schema create \
+aep schema create \
   --name "Product Catalog" \
   --from-sample test-data/ecommerce/products.json \
   --description "E-commerce product catalog with inventory"
 
 # Order transaction schema
-adobe-aep schema create \
+aep schema create \
   --name "Order Transactions" \
   --from-sample test-data/ecommerce/orders.json \
   --description "E-commerce order and fulfillment data"
@@ -95,7 +95,7 @@ adobe-aep schema create \
 ### Schema Upload to AEP
 ```bash
 # Generate and upload directly to AEP
-adobe-aep schema create \
+aep schema create \
   --name "E-commerce Customer Profile" \
   --from-sample test-data/ecommerce/customers.json \
   --use-ai \

@@ -108,5 +108,20 @@
     "success": "Success",
     "failed": "Failed",
     "optional": "Optional"
+  },
+  "cli": {
+    "categories": {
+      "api": "Core AEP API Operations",
+      "enhanced": "AI-Powered Enhancements",
+      "hybrid": "Hybrid Features (API + AI/UX)",
+      "api_desc": "Direct wrappers around Adobe Experience Platform REST APIs",
+      "enhanced_desc": "Adobe-code additions with AI intelligence and automation",
+      "hybrid_desc": "API operations enhanced with progress tracking and AI features"
+    },
+    "help": {
+      "legend_title": "Command Categories",
+      "workflow_examples": "Example Workflows",
+      "tip": "💡 Tip: Use --use-ai flag with hybrid commands to enable AI features"
+    }
   }
 }

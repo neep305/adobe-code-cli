@@ -2,7 +2,7 @@
 
 import json
 
-from adobe_aep.schema.xdm import XDMSchemaAnalyzer
+from adobe_experience.schema.xdm import XDMSchemaAnalyzer
 
 # Sample customer data
 sample_data = [

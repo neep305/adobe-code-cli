@@ -1,6 +1,7 @@
 """AI inference engine for schema generation and data analysis."""
 
 import json
+import logging
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -128,39 +129,70 @@ class DatasetAnalysisResult(BaseModel):
 class AIInferenceEngine:
     """AI inference engine using LLM for intelligent schema operations."""
 
-    SCHEMA_GENERATION_PROMPT = """You are an expert in Adobe Experience Platform XDM schemas.
+    # Enhanced system prompt with XDM expertise
+    XDM_EXPERT_SYSTEM_PROMPT = """You are an expert Adobe Experience Platform (AEP) architect specializing in XDM (Experience Data Model) schema design.
 
-Analyze the provided sample data and generate an optimal XDM schema that:
-1. Properly identifies data types and formats
-2. Suggests appropriate identity fields (email, phone, CRM ID, etc.)
-3. Identifies data quality issues or inconsistencies
-4. Recommends XDM field groups to use
+Your expertise includes:
+- XDM schema structure and composition (Profile, ExperienceEvent, custom classes)
+- Identity resolution strategies (email-based, CRM-based, device graphs) 
+- Adobe standard field groups and when to use them
+- Data quality best practices for AEP ingestion
+- Profile and Identity Service activation patterns
+- Real-time Customer Profile merge policies
 
-Sample Data:
-{sample_data}
+Key XDM Principles:
+1. **Profile vs Event**: Profile schemas store customer attributes (who they are), ExperienceEvent schemas store behavioral data (what they do)
+2. **Identity Fields**: Every Profile needs a primary identity for Profile stitching. Email is best for B2C, CRM_ID for B2B
+3. **Standard Field Groups**: Prefer Adobe standard field groups over custom fields when possible
+4. **Tenant Namespacing**: Custom fields must be under _tenant namespace to avoid conflicts
+5. **Data Types**: Use correct XDM types (string, integer, number, boolean, date, date-time, object, array)
+6. **Formats**: Apply formats (email, uri, date, date-time) for validation and optimization
 
-Schema Name: {schema_name}
-Description: {schema_description}
+Common XDM Classes:
+- https://ns.adobe.com/xdm/context/profile - Individual customer profiles (B2C/B2B)
+- https://ns.adobe.com/xdm/context/experienceevent - Behavioral events and interactions
+- https://ns.adobe.com/xdm/context/product - Product catalog data
+- https://ns.adobe.com/xdm/classes/fsi/account - Financial service accounts
 
-Provide your analysis in the following JSON format:
-{{
-    "recommended_identity_fields": {{"field_name": "namespace_reason"}},
-    "primary_identity_field": "field_name",
-    "data_quality_issues": ["issue1", "issue2"],
-    "field_recommendations": {{
-        "field_name": {{
-            "xdm_type": "string|number|boolean|object|array",
-            "format": "email|uri|date|date-time|null",
-            "is_identity": true|false,
-            "identity_namespace": "Email|Phone|ECID|null",
-            "reasoning": "why this configuration"
-        }}
-    }},
-    "xdm_mixins": ["recommended mixin URIs"],
-    "reasoning": "overall analysis and recommendations"
-}}
+Common Identity Namespaces:
+- Email: Email addresses (best for B2C primary identity)
+- Phone: Phone numbers (secondary identity)
+- ECID: Experience Cloud ID (anonymous/authenticated events)
+- CRM_ID: CRM system identifiers (best for B2B)
+- Cookie_ID: Browser cookies (ephemeral)
 
-Focus on practical XDM best practices and AEP integration patterns."""
+Analyze data with focus on practical AEP deployment patterns."""
+
+    # Few-shot examples for better accuracy
+    SCHEMA_GENERATION_EXAMPLES = """
+## Example 1: B2C Customer Profile
+Input: {"email": "user@example.com", "first_name": "John", "age": 35, "loyalty_tier": "gold"}
+Analysis:
+- XDM Class: Profile (storing customer attributes)
+- Primary Identity: email (Email namespace) - standard for B2C
+- loyalty_tier: string with enum detection
+- age: integer type
+- Use standard "Profile Personal Details" field group
+
+## Example 2: E-commerce Purchase Event
+Input: {"event_id": "evt_123", "timestamp": "2024-01-15T10:30:00Z", "user_email": "user@example.com", "product_id": "SKU-999", "price": 99.99}
+Analysis:
+- XDM Class: ExperienceEvent (behavioral event)
+- Primary Identity: user_email (Email namespace) for authenticated events
+- timestamp: date-time format required for events
+- price: number type (allows decimals)
+- Use standard "Commerce Details" field group
+
+## Example 3: Product Catalog
+Input: {"sku": "PROD-123", "name": "Widget", "price": 49.99, "category": "electronics", "in_stock": true}
+Analysis:
+- XDM Class: Product (product catalog data)
+- Primary Identity: sku (CRM_ID or custom product namespace)
+- price: number with minimum 0
+- in_stock: boolean type
+- category: string, potential enum if limited values
+- Use standard "Product Catalog" field group
+"""
 
     def __init__(self, config: Optional[AEPConfig] = None) -> None:
         """Initialize inference engine.
@@ -173,6 +205,7 @@ Focus on practical XDM best practices and AEP integration patterns."""
         self.config = config or get_config()
         self.anthropic = None
         self.openai = None
+        self.logger = logging.getLogger(__name__)
 
         # Determine which AI provider to use
         provider = self.config.ai_provider.lower()
@@ -209,7 +242,7 @@ Focus on practical XDM best practices and AEP integration patterns."""
         self,
         request: SchemaGenerationRequest,
     ) -> SchemaGenerationResponse:
-        """Generate XDM schema using AI inference.
+        """Generate XDM schema using AI inference with structured output.
 
         Args:
             request: Schema generation request.
@@ -227,36 +260,173 @@ Focus on practical XDM best practices and AEP integration patterns."""
                 "or use --no-ai flag to skip AI-powered features."
             )
 
-        # Prepare prompt
-        sample_json = json.dumps(request.sample_data[:5], indent=2)  # Limit to 5 samples
-        prompt = self.SCHEMA_GENERATION_PROMPT.format(
-            sample_data=sample_json,
-            schema_name=request.schema_name,
-            schema_description=request.schema_description or "User-provided data",
-        )
+        # Prepare context with XDM class information
+        xdm_class_context = ""
+        if request.class_id:
+            if "profile" in request.class_id.lower():
+                xdm_class_context = "\nXDM Class: Profile - Use for customer/account attributes. Requires primary identity field."
+            elif "experienceevent" in request.class_id.lower():
+                xdm_class_context = "\nXDM Class: ExperienceEvent - Use for behavioral events. Requires timestamp and event ID."
+            else:
+                xdm_class_context = f"\nXDM Class: {request.class_id}"
 
-        # Call LLM with error handling
-        try:
-            if self.active_client == "anthropic":
+        # Prepare sample data (limit to 10 records for context window)
+        sample_json = json.dumps(request.sample_data[:10], indent=2)
+        
+        # Build comprehensive prompt
+        user_prompt = f"""Analyze this sample data and provide XDM schema recommendations.
+
+{self.SCHEMA_GENERATION_EXAMPLES}
+
+---
+
+## Your Task
+
+Schema Name: {request.schema_name}
+Description: {request.schema_description or 'User-provided dataset'}{xdm_class_context}
+
+Sample Data ({len(request.sample_data)} total records, showing first 10):
+```json
+{sample_json}
+```
+
+Provide complete analysis following Adobe Experience Platform best practices.
+For each field, determine the optimal XDM type, format, and whether it should be an identity field.
+Identify data quality issues that could affect AEP ingestion.
+Recommend standard Adobe field groups when applicable."""
+
+        # Try Anthropic tool calling first (structured output)
+        if self.active_client == "anthropic" and self.anthropic:
+            try:
+                # Import the structured model
+                from adobe_experience.schema.models import AISchemaAnalysis
+
+                # Define tool for structured output
+                tools = [{
+                    "name": "analyze_xdm_schema",
+                    "description": "Analyze sample data and provide comprehensive XDM schema recommendations with field-level analysis, identity strategy, and data quality assessment.",
+                    "input_schema": AISchemaAnalysis.model_json_schema()
+                }]
+
                 response = self.anthropic.messages.create(
                     model=self.config.ai_model,
-                    max_tokens=4096,
+                    max_tokens=8192,
+                    system=self.XDM_EXPERT_SYSTEM_PROMPT,
                     messages=[
                         {
                             "role": "user",
-                            "content": prompt,
+                            "content": user_prompt,
+                        }
+                    ],
+                    tools=tools,
+                    tool_choice={"type": "tool", "name": "analyze_xdm_schema"},
+                )
+
+                # Extract tool use from response
+                tool_use = None
+                for content_block in response.content:
+                    if content_block.type == "tool_use" and content_block.name == "analyze_xdm_schema":
+                        tool_use = content_block
+                        break
+
+                if not tool_use:
+                    raise ValueError("No tool use in Anthropic response")
+
+                # Parse structured output
+                ai_analysis = AISchemaAnalysis.model_validate(tool_use.input)
+
+                # Generate base schema using analyzer
+                from adobe_experience.schema.xdm import XDMSchemaAnalyzer
+
+                schema = XDMSchemaAnalyzer.from_sample_data(
+                    request.sample_data,
+                    request.schema_name,
+                    request.schema_description,
+                    tenant_id=request.tenant_id,
+                    class_id=request.class_id or ai_analysis.xdm_class_recommendation,
+                )
+
+                # Apply AI recommendations to schema fields
+                if schema.properties:
+                    # Handle tenant-nested properties
+                    if request.tenant_id and f"_{request.tenant_id}" in schema.properties:
+                        tenant_obj = schema.properties[f"_{request.tenant_id}"]
+                        target_properties = tenant_obj.properties if tenant_obj.properties else {}
+                    else:
+                        target_properties = schema.properties
+
+                    for field_name, field_rec in ai_analysis.field_recommendations.items():
+                        if field_name in target_properties:
+                            field = target_properties[field_name]
+
+                            # Update format if recommended
+                            if field_rec.xdm_format:
+                                from adobe_experience.schema.models import XDMFieldFormat
+                                try:
+                                    field.format = XDMFieldFormat(field_rec.xdm_format)
+                                except (ValueError, AttributeError):
+                                    pass
+
+                            # Add identity if recommended
+                            if field_rec.is_identity and field_rec.identity_namespace:
+                                from adobe_experience.schema.models import XDMIdentity
+                                field.identity = XDMIdentity(
+                                    namespace=field_rec.identity_namespace,
+                                    is_primary=field_rec.is_primary_identity,
+                                )
+
+                # Build identity recommendations dictionary
+                identity_recs = {
+                    field_rec.field_name: f"{field_rec.identity_namespace} - {field_rec.reasoning[:100]}"
+                    for field_rec in ai_analysis.field_recommendations.values()
+                    if field_rec.is_identity
+                }
+
+                # Build data quality issues list
+                quality_issues = [
+                    f"[{issue.severity.upper()}] {issue.field_name}: {issue.description}"
+                    for issue in ai_analysis.data_quality_issues
+                ]
+
+                return SchemaGenerationResponse(
+                    xdm_schema=schema,
+                    reasoning=ai_analysis.overall_reasoning,
+                    identity_recommendations=identity_recs,
+                    data_quality_issues=quality_issues,
+                )
+
+            except Exception as e:
+                # Log the error and fall through to legacy text-based approach
+                self.logger.warning(f"Structured output failed, falling back to text parsing: {e}")
+                # Fall through to legacy approach below
+
+        # Legacy approach: text-based parsing (fallback for OpenAI or Anthropic errors)
+        try:
+            if self.active_client == "anthropic" and self.anthropic:
+                response = self.anthropic.messages.create(
+                    model=self.config.ai_model,
+                    max_tokens=4096,
+                    system=self.XDM_EXPERT_SYSTEM_PROMPT,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": user_prompt,
                         }
                     ],
                 )
                 ai_output = response.content[0].text
-            elif self.active_client == "openai":
+            elif self.active_client == "openai" and self.openai:
                 response = self.openai.chat.completions.create(
                     model=self.config.ai_model,
                     max_tokens=4096,
                     messages=[
                         {
+                            "role": "system",
+                            "content": self.XDM_EXPERT_SYSTEM_PROMPT,
+                        },
+                        {
                             "role": "user",
-                            "content": prompt,
+                            "content": user_prompt,
                         }
                     ],
                 )
@@ -273,7 +443,7 @@ Focus on practical XDM best practices and AEP integration patterns."""
                 ) from e
             raise
 
-        # Parse AI response
+        # Parse AI response (legacy text-based format)
         ai_output = ai_output or ""
 
         # Extract JSON from response (handle markdown code blocks)
@@ -286,7 +456,24 @@ Focus on practical XDM best practices and AEP integration patterns."""
             json_end = ai_output.index("```", json_start)
             ai_output = ai_output[json_start:json_end].strip()
 
-        ai_analysis = json.loads(ai_output)
+        try:
+            ai_analysis = json.loads(ai_output)
+        except json.JSONDecodeError as e:
+            # If JSON parsing fails, return basic schema without AI enhancements
+            from adobe_experience.schema.xdm import XDMSchemaAnalyzer
+            schema = XDMSchemaAnalyzer.from_sample_data(
+                request.sample_data,
+                request.schema_name,
+                request.schema_description,
+                tenant_id=request.tenant_id,
+                class_id=request.class_id,
+            )
+            return SchemaGenerationResponse(
+                xdm_schema=schema,
+                reasoning="AI analysis parsing failed - using basic schema generation",
+                identity_recommendations={},
+                data_quality_issues=[f"Warning: AI response parsing error: {e}"],
+            )
 
         # Generate schema using analyzer with AI enhancements
         from adobe_experience.schema.xdm import XDMSchemaAnalyzer
@@ -333,6 +520,124 @@ Focus on practical XDM best practices and AEP integration patterns."""
             reasoning=ai_analysis.get("reasoning", "AI-generated schema"),
             identity_recommendations=ai_analysis.get("recommended_identity_fields", {}),
             data_quality_issues=ai_analysis.get("data_quality_issues", []),
+        )
+
+    async def infer_field_type_with_context(
+        self,
+        field_name: str,
+        sample_values: List[Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> "AIFieldTypeInference":
+        """Use AI to infer field type considering semantic context and edge cases.
+
+        Args:
+            field_name: Field name to analyze.
+            sample_values: Sample values from the field.
+            context: Additional context (neighboring fields, entity type, etc.).
+
+        Returns:
+            AI field type inference with edge case handling.
+
+        Raises:
+            ValueError: If AI client is not configured.
+        """
+        if not self.active_client:
+            raise ValueError("No AI provider configured")
+
+        # Import here to avoid circular dependency
+        from adobe_experience.schema.models import AIFieldTypeInference
+
+        # Prepare context information
+        context_info = ""
+        if context:
+            context_info = f"\nContext: {json.dumps(context, indent=2)}"
+
+        # Limit sample values
+        samples = sample_values[:20] if len(sample_values) > 20 else sample_values
+        
+        user_prompt = f"""Analyze this field and infer the optimal XDM data type, considering edge cases and semantic meaning.
+
+Field Name: {field_name}
+Sample Values ({len(sample_values)} total, showing first {len(samples)}):
+{json.dumps(samples, indent=2, default=str)}{context_info}
+
+**Edge Cases to Consider:**
+1. **Boolean Variants**: Values like 0/1, "Y"/"N", "true"/"false", "yes"/"no", "on"/"off"
+2. **Date Formats**: ISO 8601, epoch timestamps (seconds/milliseconds), custom formats (MM/DD/YYYY, DD-MM-YYYY)
+3. **Phone Numbers**: International formats (+1-555-1234), national formats, E.164 format
+4. **Currency**: Values with symbols ($100.00, €50), plain numbers, cents vs dollars
+5. **Mixed Arrays**: Arrays with multiple types
+6. **Numeric Strings**: Strings that could be numbers ("123", "45.67")
+
+**Semantic Analysis:**
+- Infer purpose from field name (e.g., "phone" = phone number, "amt" = amount/currency)
+- Consider common naming patterns (snake_case, camelCase)
+- Map to appropriate XDM types and formats
+
+**XDM Types Available:**
+- string (with formats: email, uri, date, date-time, uuid)
+- number (for decimals, currency)
+- integer (for whole numbers)
+- boolean
+- object (nested structures)
+- array (collections)
+
+Provide comprehensive type inference with edge case detection and handling recommendations."""
+
+        # Try structured output first (Anthropic)
+        if self.active_client == "anthropic" and self.anthropic:
+            try:
+                tools = [{
+                    "name": "infer_field_type",
+                    "description": "Infer XDM field type with edge case handling and semantic analysis",
+                    "input_schema": AIFieldTypeInference.model_json_schema()
+                }]
+
+                response = self.anthropic.messages.create(
+                    model=self.config.ai_model,
+                    max_tokens=2048,
+                    system="You are an expert in data type inference and XDM schema design. Analyze field names and values to detect edge cases and recommend optimal XDM types.",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ],
+                    tools=tools,
+                    tool_choice={"type": "tool", "name": "infer_field_type"},
+                )
+
+                # Extract tool use
+                for content_block in response.content:
+                    if content_block.type == "tool_use" and content_block.name == "infer_field_type":
+                        return AIFieldTypeInference.model_validate(content_block.input)
+
+                raise ValueError("No tool use in response")
+
+            except Exception as e:
+                # Fall through to text-based approach
+                self.logger.warning(f"Structured type inference failed: {e}")
+
+        # Fallback: Simple heuristic-based inference
+        from adobe_experience.schema.xdm import XDMSchemaAnalyzer
+        
+        non_null = [v for v in sample_values if v is not None]
+        if not non_null:
+            return AIFieldTypeInference(
+                field_name=field_name,
+                recommended_xdm_type="string",
+                confidence=0.5,
+                reasoning="No non-null values to analyze",
+            )
+        
+        # Use existing type inference as fallback
+        inferred_type = XDMSchemaAnalyzer.infer_xdm_type(non_null[0])
+        
+        return AIFieldTypeInference(
+            field_name=field_name,
+            recommended_xdm_type=inferred_type.value,
+            confidence=0.7,
+            reasoning=f"Heuristic inference from sample values (AI unavailable)",
         )
 
     async def suggest_identity_namespace(

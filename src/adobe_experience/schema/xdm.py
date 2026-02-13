@@ -73,17 +73,230 @@ class XDMSchemaAnalyzer:
 
         return None
 
+    @staticmethod
+    def detect_boolean_variant(sample_values: List[Any]) -> Optional[Dict[str, Any]]:
+        """Detect boolean-like values in various formats.
+
+        Args:
+            sample_values: Sample values to analyze.
+
+        Returns:
+            Detection result with conversion info, or None if not boolean variant.
+        """
+        non_null = [v for v in sample_values if v is not None]
+        if not non_null:
+            return None
+
+        # Convert to strings for pattern matching
+        str_values = [str(v).lower().strip() for v in non_null]
+        unique_values = set(str_values)
+
+        # Check for boolean variants
+        boolean_patterns = {
+            "numeric_01": ({"0", "1"}, {"1"}, {"0"}),
+            "yes_no": ({"yes", "no", "y", "n"}, {"yes", "y"}, {"no", "n"}),
+            "true_false": ({"true", "false", "t", "f"}, {"true", "t"}, {"false", "f"}),
+            "on_off": ({"on", "off"}, {"on"}, {"off"}),
+            "enabled_disabled": ({"enabled", "disabled"}, {"enabled"}, {"disabled"}),
+        }
+
+        for variant_type, (all_values, true_vals, false_vals) in boolean_patterns.items():
+            if unique_values.issubset(all_values):
+                return {
+                    "is_boolean_variant": True,
+                    "variant_type": variant_type,
+                    "true_values": list(true_vals),
+                    "false_values": list(false_vals),
+                    "confidence": 0.95,
+                }
+
+        return None
+
+    @staticmethod
+    def detect_date_format(field_name: str, sample_values: List[Any]) -> Optional[Dict[str, Any]]:
+        """Detect date/datetime formats.
+
+        Args:
+            field_name: Field name for semantic hints.
+            sample_values: Sample values to analyze.
+
+        Returns:
+            Detection result with format info, or None if not a date field.
+        """
+        import re
+
+        non_null = [v for v in sample_values if v is not None]
+        if not non_null:
+            return None
+
+        # Check field name for date-related keywords
+        field_lower = field_name.lower()
+        has_date_name = any(
+            keyword in field_lower
+            for keyword in ["date", "time", "timestamp", "created", "updated", "modified"]
+        )
+
+        sample_str = str(non_null[0])
+
+        # ISO 8601 detection
+        iso8601_pattern = r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$"
+        if re.match(iso8601_pattern, sample_str):
+            is_datetime = "T" in sample_str
+            return {
+                "is_date_field": True,
+                "detected_format": "iso8601",
+                "is_datetime": is_datetime,
+                "confidence": 0.98,
+            }
+
+        # Epoch timestamp (numeric)
+        if isinstance(non_null[0], (int, float)):
+            val = float(non_null[0])
+            # Unix timestamp in seconds (10 digits)
+            if 1000000000 <= val < 10000000000:
+                return {
+                    "is_date_field": True,
+                    "detected_format": "epoch_seconds",
+                    "is_datetime": True,
+                    "confidence": 0.85,
+                }
+            # Unix timestamp in milliseconds (13 digits)
+            elif 1000000000000 <= val < 10000000000000:
+                return {
+                    "is_date_field": True,
+                    "detected_format": "epoch_millis",
+                    "is_datetime": True,
+                    "confidence": 0.85,
+                }
+
+        # Custom date formats (only if field name suggests it's a date)
+        if has_date_name and isinstance(non_null[0], str):
+            # Common patterns
+            patterns = [
+                (r"^\d{2}/\d{2}/\d{4}$", "MM/DD/YYYY"),
+                (r"^\d{4}/\d{2}/\d{2}$", "YYYY/MM/DD"),
+                (r"^\d{2}-\d{2}-\d{4}$", "DD-MM-YYYY"),
+            ]
+            for pattern, format_str in patterns:
+                if re.match(pattern, sample_str):
+                    return {
+                        "is_date_field": True,
+                        "detected_format": "custom",
+                        "format_pattern": format_str,
+                        "is_datetime": False,
+                        "confidence": 0.75,
+                    }
+
+        return None
+
+    @staticmethod
+    def detect_phone_number(field_name: str, sample_values: List[Any]) -> Optional[Dict[str, Any]]:
+        """Detect phone number fields.
+
+        Args:
+            field_name: Field name for semantic hints.
+            sample_values: Sample values to analyze.
+
+        Returns:
+            Detection result, or None if not a phone number field.
+        """
+        import re
+
+        # Check field name
+        field_lower = field_name.lower()
+        has_phone_name = any(
+            keyword in field_lower for keyword in ["phone", "tel", "mobile", "cell", "fax"]
+        )
+
+        if not has_phone_name:
+            return None
+
+        non_null = [v for v in sample_values if v is not None]
+        if not non_null:
+            return None
+
+        sample_str = str(non_null[0])
+
+        # Phone number patterns
+        # International: +1-555-123-4567, +44 20 1234 5678
+        # National: (555) 123-4567, 555-123-4567
+        # E.164: +15551234567
+        phone_patterns = [
+            r"^\+\d{1,3}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,9}$",  # International
+            r"^\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}$",  # US format
+            r"^\+?\d{10,15}$",  # E.164 or plain digits
+        ]
+
+        for pattern in phone_patterns:
+            if re.match(pattern, sample_str):
+                has_country_code = sample_str.startswith("+")
+                return {
+                    "is_phone_number": True,
+                    "country_code_present": has_country_code,
+                    "confidence": 0.90,
+                }
+
+        return None
+
+    @staticmethod
+    def detect_currency(field_name: str, sample_values: List[Any]) -> Optional[Dict[str, Any]]:
+        """Detect currency/monetary fields.
+
+        Args:
+            field_name: Field name for semantic hints.
+            sample_values: Sample values to analyze.
+
+        Returns:
+            Detection result, or None if not a currency field.
+        """
+        import re
+
+        # Check field name
+        field_lower = field_name.lower()
+        has_currency_name = any(
+            keyword in field_lower
+            for keyword in ["price", "cost", "amount", "amt", "total", "subtotal", "tax", "fee", "revenue", "salary"]
+        )
+
+        non_null = [v for v in sample_values if v is not None]
+        if not non_null:
+            return None
+
+        sample = non_null[0]
+
+        # Check if string with currency symbols
+        if isinstance(sample, str):
+            currency_pattern = r"^[\$€£¥₹]?\s?[\d,]+\.?\d*$"
+            if re.match(currency_pattern, sample):
+                return {
+                    "is_currency": True,
+                    "has_currency_symbols": "$" in sample or "€" in sample or "£" in sample,
+                    "confidence": 0.92,
+                }
+
+        # Numeric value with currency-suggestive field name
+        elif isinstance(sample, (int, float)) and has_currency_name:
+            return {
+                "is_currency": True,
+                "has_currency_symbols": False,
+                "confidence": 0.80,
+            }
+
+        return None
+
     @classmethod
     def analyze_field(
         cls,
         field_name: str,
         sample_values: List[Any],
+        use_ai: bool = False,
     ) -> XDMField:
-        """Analyze a field from sample values.
+        """Analyze a field from sample values with optional AI enhancement.
 
         Args:
             field_name: Field name.
             sample_values: List of sample values.
+            use_ai: Whether to use AI for ambiguous cases (async required).
 
         Returns:
             XDM field definition.
@@ -98,7 +311,70 @@ class XDMSchemaAnalyzer:
                 type=XDMDataType.STRING,
             )
 
-        # Infer type from first non-null value
+        # Check for edge cases first
+        # Boolean variants
+        bool_detect = cls.detect_boolean_variant(non_null_values)
+        if bool_detect and bool_detect["is_boolean_variant"]:
+            field = XDMField(
+                title=field_name.replace("_", " ").title(),
+                description=f"Field: {field_name} (detected as {bool_detect['variant_type']})",
+                type=XDMDataType.BOOLEAN,
+            )
+            # Add enum to show original values in description
+            field.description += f" - Original values: {bool_detect['true_values']} (true), {bool_detect['false_values']} (false)"
+            return field
+
+        # Date format detection
+        date_detect = cls.detect_date_format(field_name, non_null_values)
+        if date_detect and date_detect["is_date_field"]:
+            xdm_type = XDMDataType.DATE_TIME if date_detect["is_datetime"] else XDMDataType.DATE
+            xdm_format = XDMFieldFormat.DATE_TIME if date_detect["is_datetime"] else XDMFieldFormat.DATE
+            field = XDMField(
+                title=field_name.replace("_", " ").title(),
+                description=f"Field: {field_name} (detected format: {date_detect['detected_format']})",
+                type=XDMDataType.STRING,
+                format=xdm_format,
+            )
+            return field
+
+        # Phone number detection
+        phone_detect = cls.detect_phone_number(field_name, non_null_values)
+        if phone_detect and phone_detect["is_phone_number"]:
+            field = XDMField(
+                title=field_name.replace("_", " ").title(),
+                description=f"Field: {field_name} (phone number)",
+                type=XDMDataType.STRING,
+            )
+            # Could add custom format or meta field for phone
+            return field
+
+        # Currency detection
+        currency_detect = cls.detect_currency(field_name, non_null_values)
+        if currency_detect and currency_detect["is_currency"]:
+            field = XDMField(
+                title=field_name.replace("_", " ").title(),
+                description=f"Field: {field_name} (currency/monetary value)",
+                type=XDMDataType.NUMBER,
+            )
+            numeric_values = []
+            for v in non_null_values:
+                if isinstance(v, (int, float)):
+                    numeric_values.append(float(v))
+                elif isinstance(v, str):
+                    # Strip currency symbols and convert
+                    import re
+                    cleaned = re.sub(r"[^\d.]", "", v)
+                    if cleaned:
+                        try:
+                            numeric_values.append(float(cleaned))
+                        except ValueError:
+                            pass
+            if numeric_values:
+                field.minimum = min(numeric_values)
+                field.maximum = max(numeric_values)
+            return field
+
+        # Standard type inference
         sample = non_null_values[0]
         xdm_type = cls.infer_xdm_type(sample)
 
@@ -114,18 +390,32 @@ class XDMSchemaAnalyzer:
 
         # Handle arrays
         if xdm_type == XDMDataType.ARRAY and isinstance(sample, list) and sample:
-            item_type = cls.infer_xdm_type(sample[0])
-            field.items = XDMField(
-                title="Item",
-                description="Array item",
-                type=item_type,
-            )
+            # Check for mixed types
+            item_types = set()
+            for item in sample[:10]:  # Check first 10 items
+                if item is not None:
+                    item_types.add(type(item).__name__)
+            
+            if len(item_types) > 1:
+                # Mixed array - use string as safe fallback
+                field.items = XDMField(
+                    title="Item",
+                    description=f"Array item (mixed types detected: {', '.join(item_types)})",
+                    type=XDMDataType.STRING,
+                )
+            else:
+                item_type = cls.infer_xdm_type(sample[0])
+                field.items = XDMField(
+                    title="Item",
+                    description="Array item",
+                    type=item_type,
+                )
 
         # Handle objects (nested)
         if xdm_type == XDMDataType.OBJECT and isinstance(sample, dict):
             field.properties = {}
             for key, value in sample.items():
-                field.properties[key] = cls.analyze_field(key, [value])
+                field.properties[key] = cls.analyze_field(key, [value], use_ai=use_ai)
 
         # Detect numeric ranges
         if xdm_type in (XDMDataType.INTEGER, XDMDataType.NUMBER):
@@ -133,14 +423,6 @@ class XDMSchemaAnalyzer:
             if numeric_values:
                 field.minimum = min(numeric_values)
                 field.maximum = max(numeric_values)
-
-        # Enum detection disabled for now - AEP requires meta:enum for enum fields
-        # TODO: Add meta:enum support when enum detection is re-enabled
-        # if xdm_type == XDMDataType.STRING:
-        #     unique_values = set(str(v) for v in non_null_values)
-        #     unique_ratio = len(unique_values) / len(non_null_values) if non_null_values else 1
-        #     if len(unique_values) <= 5 and len(non_null_values) >= 5 and unique_ratio < 0.5:
-        #         field.enum = sorted(unique_values)
 
         return field
 

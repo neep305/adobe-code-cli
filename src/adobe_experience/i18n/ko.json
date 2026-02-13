@@ -108,5 +108,20 @@
     "success": "성공",
     "failed": "실패",
     "optional": "선택사항"
+  },
+  "cli": {
+    "categories": {
+      "api": "핵심 AEP API 작업",
+      "enhanced": "AI 기반 향상 기능",
+      "hybrid": "하이브리드 기능 (API + AI/UX)",
+      "api_desc": "Adobe Experience Platform REST API의 직접 래퍼",
+      "enhanced_desc": "AI 지능 및 자동화가 포함된 adobe-code 추가 기능",
+      "hybrid_desc": "진행 상황 추적 및 AI 기능이 향상된 API 작업"
+    },
+    "help": {
+      "legend_title": "명령 카테고리",
+      "workflow_examples": "예제 워크플로",
+      "tip": "💡 팁: 하이브리드 명령에 --use-ai 플래그를 사용하여 AI 기능 활성화"
+    }
   }
 }

@@ -28,11 +28,11 @@ ruff check src/ tests/        # Lint
 mypy src/                     # Type checking
 
 # CLI Usage
-adobe-aep init                # Interactive setup wizard
-adobe-aep auth test           # Test AEP credentials
-adobe-aep schema create       # Create XDM schema from sample data
-adobe-aep schema list         # List schemas
-adobe-aep schema get [id]     # Get schema details
+aep init                # Interactive setup wizard
+aep auth test           # Test AEP credentials
+aep schema create       # Create XDM schema from sample data
+aep schema list         # List schemas
+aep schema get [id]     # Get schema details
 ```
 
 ## Architecture

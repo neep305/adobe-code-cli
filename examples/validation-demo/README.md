@@ -16,7 +16,7 @@ This demo showcases the end-to-end workflow: Schema creation → AEP upload → 
 ### Basic Usage
 
 ```bash
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Customer Profile Demo" \
   --from-sample examples/validation-demo/sample_customers.json \
   --validate-data examples/validation-demo/actual_customers.json \
@@ -26,7 +26,7 @@ adobe aep schema upload-and-validate \
 ### Without AI (faster, basic validation only)
 
 ```bash
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Customer Profile Demo" \
   --from-sample examples/validation-demo/sample_customers.json \
   --validate-data examples/validation-demo/actual_customers.json \
@@ -36,7 +36,7 @@ adobe aep schema upload-and-validate \
 ### Custom Class (ExperienceEvent instead of Profile)
 
 ```bash
-adobe aep schema upload-and-validate \
+aep schema upload-and-validate \
   --name "Customer Events Demo" \
   --from-sample examples/validation-demo/sample_customers.json \
   --validate-data examples/validation-demo/actual_customers.json \

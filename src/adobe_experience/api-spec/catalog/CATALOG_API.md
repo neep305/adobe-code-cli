@@ -170,52 +170,52 @@ GET /data/foundation/catalog/dataSetFiles?batchId={BATCH_ID}
 
 ```bash
 # List datasets
-adobe aep dataset list
-adobe aep dataset list --limit 50
-adobe aep dataset list --schema "https://ns.adobe.com/tenant/schemas/abc123"
-adobe aep dataset list --state ENABLED
+aep dataset list
+aep dataset list --limit 50
+aep dataset list --schema "https://ns.adobe.com/tenant/schemas/abc123"
+aep dataset list --state ENABLED
 
 # Create dataset
-adobe aep dataset create \
+aep dataset create \
   --name "Customer Events" \
   --schema "https://ns.adobe.com/tenant/schemas/abc123" \
   --enable-profile
 
 # Get dataset details
-adobe aep dataset get 5c8c3c555033b814b69f947f
-adobe aep dataset get 5c8c3c555033b814b69f947f --output dataset.json
+aep dataset get 5c8c3c555033b814b69f947f
+aep dataset get 5c8c3c555033b814b69f947f --output dataset.json
 
 # Enable for Profile/Identity
-adobe aep dataset enable-profile 5c8c3c555033b814b69f947f
-adobe aep dataset enable-identity 5c8c3c555033b814b69f947f
+aep dataset enable-profile 5c8c3c555033b814b69f947f
+aep dataset enable-identity 5c8c3c555033b814b69f947f
 
 # Delete dataset
-adobe aep dataset delete 5c8c3c555033b814b69f947f --yes
+aep dataset delete 5c8c3c555033b814b69f947f --yes
 ```
 
 ### Batch Management
 
 ```bash
 # Create batch
-adobe aep dataset create-batch \
+aep dataset create-batch \
   --dataset 5c8c3c555033b814b69f947f \
   --format json
 
 # List batches
-adobe aep dataset list-batches
-adobe aep dataset list-batches --dataset 5c8c3c555033b814b69f947f
-adobe aep dataset list-batches --status success
+aep dataset list-batches
+aep dataset list-batches --dataset 5c8c3c555033b814b69f947f
+aep dataset list-batches --status success
 
 # Check batch status
-adobe aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c
-adobe aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c --watch
+aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c
+aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c --watch
 
 # Complete batch (after file upload)
-adobe aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
-adobe aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --wait
+aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
+aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --wait
 
 # Abort batch
-adobe aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --yes
+aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --yes
 ```
 
 ## Python Client Usage

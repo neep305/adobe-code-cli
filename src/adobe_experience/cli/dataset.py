@@ -14,12 +14,21 @@ from rich.table import Table
 from adobe_experience.aep.client import AEPClient
 from adobe_experience.catalog.client import CatalogServiceClient
 from adobe_experience.catalog.models import BatchStatus
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
 from adobe_experience.core.config import get_config
 
 console = Console()
 dataset_app = typer.Typer(help="Dataset and batch management commands")
 
+# Register command group metadata
+register_command_group_metadata("dataset", CommandCategory.API, "Dataset and batch API operations")
 
+
+@command_metadata(CommandCategory.API, "List datasets from Catalog Service")
 @dataset_app.command("list")
 def list_datasets(
     limit: int = typer.Option(20, "--limit", "-l", help="Number of datasets to display"),
@@ -29,10 +38,10 @@ def list_datasets(
     """List datasets in Adobe Experience Platform.
 
     Examples:
-        adobe aep dataset list
-        adobe aep dataset list --limit 50
-        adobe aep dataset list --schema "https://ns.adobe.com/.../schemas/..."
-        adobe aep dataset list --state ENABLED
+        aep dataset list
+        aep dataset list --limit 50
+        aep dataset list --schema "https://ns.adobe.com/.../schemas/..."
+        aep dataset list --state ENABLED
     """
 
     async def fetch_datasets():
@@ -72,6 +81,7 @@ def list_datasets(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Create a new dataset")
 @dataset_app.command("create")
 def create_dataset(
     name: str = typer.Option(..., "--name", "-n", help="Dataset name"),
@@ -86,9 +96,9 @@ def create_dataset(
     the full schema URI (e.g., https://ns.adobe.com/{tenant}/schemas/{id}).
 
     Examples:
-        adobe aep dataset create --name "Customer Events" --schema "https://..."
-        adobe aep dataset create -n "Orders" -s "https://..." --enable-profile
-        adobe aep dataset create -n "Products" -s "https://..." -d "Product catalog"
+        aep dataset create --name "Customer Events" --schema "https://..."
+        aep dataset create -n "Orders" -s "https://..." --enable-profile
+        aep dataset create -n "Products" -s "https://..." -d "Product catalog"
     """
 
     async def create():
@@ -116,12 +126,23 @@ def create_dataset(
             title="✨ Dataset Created",
             border_style="green"
         ))
+        
+        # Update onboarding progress for dataset creation
+        try:
+            from adobe_experience.cli.onboarding import update_onboarding_progress
+            from adobe_experience.core.config import Milestone
+            
+            if update_onboarding_progress("dataset", Milestone.FIRST_DATASET):
+                console.print("[dim]✨ Onboarding progress updated[/dim]")
+        except Exception:
+            pass
 
     except Exception as e:
         console.print(f"\n[red]✗ Error: {e}[/red]")
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Get dataset details by ID")
 @dataset_app.command("get")
 def get_dataset(
     dataset_id: str = typer.Argument(..., help="Dataset ID"),
@@ -130,8 +151,8 @@ def get_dataset(
     """Get dataset details by ID.
 
     Examples:
-        adobe aep dataset get 5c8c3c555033b814b69f947f
-        adobe aep dataset get 5c8c3c555033b814b69f947f --output dataset.json
+        aep dataset get 5c8c3c555033b814b69f947f
+        aep dataset get 5c8c3c555033b814b69f947f --output dataset.json
     """
 
     async def fetch_dataset():
@@ -180,6 +201,7 @@ def get_dataset(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Delete a dataset")
 @dataset_app.command("delete")
 def delete_dataset(
     dataset_id: str = typer.Argument(..., help="Dataset ID"),
@@ -190,8 +212,8 @@ def delete_dataset(
     WARNING: This action cannot be undone. All data in the dataset will be lost.
 
     Examples:
-        adobe aep dataset delete 5c8c3c555033b814b69f947f
-        adobe aep dataset delete 5c8c3c555033b814b69f947f --yes
+        aep dataset delete 5c8c3c555033b814b69f947f
+        aep dataset delete 5c8c3c555033b814b69f947f --yes
     """
 
     if not yes:
@@ -217,6 +239,7 @@ def delete_dataset(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Enable dataset for Real-Time Customer Profile")
 @dataset_app.command("enable-profile")
 def enable_profile(
     dataset_id: str = typer.Argument(..., help="Dataset ID"),
@@ -226,7 +249,7 @@ def enable_profile(
     This allows the dataset's data to be included in unified customer profiles.
 
     Examples:
-        adobe aep dataset enable-profile 5c8c3c555033b814b69f947f
+        aep dataset enable-profile 5c8c3c555033b814b69f947f
     """
 
     async def enable():
@@ -247,6 +270,7 @@ def enable_profile(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Enable dataset for Identity Service")
 @dataset_app.command("enable-identity")
 def enable_identity(
     dataset_id: str = typer.Argument(..., help="Dataset ID"),
@@ -256,7 +280,7 @@ def enable_identity(
     This allows the dataset's data to be used for identity graph construction.
 
     Examples:
-        adobe aep dataset enable-identity 5c8c3c555033b814b69f947f
+        aep dataset enable-identity 5c8c3c555033b814b69f947f
     """
 
     async def enable():
@@ -277,9 +301,10 @@ def enable_identity(
         raise typer.Exit(1)
 
 
-# ==================== Batch Commands ====================
+# ====================Batch Commands ====================
 
 
+@command_metadata(CommandCategory.API, "Create a new batch for data ingestion")
 @dataset_app.command("create-batch")
 def create_batch_cmd(
     dataset_id: str = typer.Option(..., "--dataset", "-d", help="Dataset ID"),
@@ -291,8 +316,8 @@ def create_batch_cmd(
     you must upload files and then complete the batch to trigger processing.
 
     Examples:
-        adobe aep dataset create-batch --dataset 5c8c3c555033b814b69f947f --format json
-        adobe aep dataset create-batch -d 5c8c3c555033b814b69f947f -f parquet
+        aep dataset create-batch --dataset 5c8c3c555033b814b69f947f --format json
+        aep dataset create-batch -d 5c8c3c555033b814b69f947f -f parquet
     """
 
     async def create():
@@ -312,8 +337,8 @@ def create_batch_cmd(
             f"[cyan]Format:[/cyan] {format}\n\n"
             f"[yellow]Next steps:[/yellow]\n"
             f"1. Upload files to the batch\n"
-            f"2. Complete the batch: [cyan]adobe aep dataset complete-batch {batch_id}[/cyan]\n"
-            f"3. Monitor status: [cyan]adobe aep dataset batch-status {batch_id}[/cyan]",
+            f"2. Complete the batch: [cyan]aep dataset complete-batch {batch_id}[/cyan]\n"
+            f"3. Monitor status: [cyan]aep dataset batch-status {batch_id}[/cyan]",
             title="✨ Batch Created",
             border_style="green"
         ))
@@ -323,6 +348,7 @@ def create_batch_cmd(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Get batch status and details")
 @dataset_app.command("batch-status")
 def batch_status(
     batch_id: str = typer.Argument(..., help="Batch ID"),
@@ -331,8 +357,8 @@ def batch_status(
     """Check batch ingestion status.
 
     Examples:
-        adobe aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c
-        adobe aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c --watch
+        aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c
+        aep dataset batch-status 5d01230fc78a4e4f8c0c6b387b4b8d1c --watch
     """
 
     async def get_status():
@@ -379,6 +405,7 @@ def batch_status(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "List batches for a dataset")
 @dataset_app.command("list-batches")
 def list_batches(
     limit: int = typer.Option(20, "--limit", "-l", help="Number of batches to display"),
@@ -388,9 +415,9 @@ def list_batches(
     """List batches in Adobe Experience Platform.
 
     Examples:
-        adobe aep dataset list-batches
-        adobe aep dataset list-batches --dataset 5c8c3c555033b814b69f947f
-        adobe aep dataset list-batches --status success --limit 50
+        aep dataset list-batches
+        aep dataset list-batches --dataset 5c8c3c555033b814b69f947f
+        aep dataset list-batches --status success --limit 50
     """
 
     async def fetch_batches():
@@ -443,6 +470,7 @@ def list_batches(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Mark a batch as complete")
 @dataset_app.command("complete-batch")
 def complete_batch(
     batch_id: str = typer.Argument(..., help="Batch ID"),
@@ -454,8 +482,8 @@ def complete_batch(
     trigger AEP's data processing pipeline.
 
     Examples:
-        adobe aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
-        adobe aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --wait
+        aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
+        aep dataset complete-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --wait
     """
 
     async def complete():
@@ -487,13 +515,14 @@ def complete_batch(
                 asyncio.run(complete())
 
             console.print(f"[green]✓[/green] Batch {batch_id} marked as complete")
-            console.print(f"[dim]Monitor status with: adobe aep dataset batch-status {batch_id}[/dim]")
+            console.print(f"[dim]Monitor status with: aep dataset batch-status {batch_id}[/dim]")
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Abort a batch upload")
 @dataset_app.command("abort-batch")
 def abort_batch(
     batch_id: str = typer.Argument(..., help="Batch ID"),
@@ -502,8 +531,8 @@ def abort_batch(
     """Abort a batch ingestion.
 
     Examples:
-        adobe aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
-        adobe aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --yes
+        aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c
+        aep dataset abort-batch 5d01230fc78a4e4f8c0c6b387b4b8d1c --yes
     """
 
     if not yes:

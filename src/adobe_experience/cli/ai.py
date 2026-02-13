@@ -9,8 +9,17 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
+
 ai_app = typer.Typer(help="AI provider configuration")
 console = Console()
+
+# Register command group metadata
+register_command_group_metadata("ai", CommandCategory.ENHANCED, "AI provider key management")
 
 
 def get_credentials_file() -> Path:
@@ -46,6 +55,7 @@ def save_credentials(credentials: dict) -> None:
         pass
 
 
+@command_metadata(CommandCategory.ENHANCED, "Store AI provider API key")
 @ai_app.command("set-key")
 def set_api_key(
     provider: str = typer.Argument(
@@ -66,9 +76,9 @@ def set_api_key(
     """Store API key for AI provider.
     
     Examples:
-        adobe-aep ai set-key openai
-        adobe-aep ai set-key openai sk-xxxxx
-        adobe-aep ai set-key anthropic --model claude-3-5-sonnet-20241022
+        aep ai set-key openai
+        aep ai set-key openai sk-xxxxx
+        aep ai set-key anthropic --model claude-3-5-sonnet-20241022
     """
     provider = provider.lower()
     
@@ -80,7 +90,7 @@ def set_api_key(
     # API 키가 제공되지 않았으면 대화형으로 입력받기
     if not api_key:
         console.print(f"\n[bold]Setting up {provider.upper()} API key[/bold]")
-        console.print(f"[yellow]Note: Input will be visible. Use direct argument to hide: adobe-aep ai set-key {provider} YOUR_KEY[/yellow]")
+        console.print(f"[yellow]Note: Input will be visible. Use direct argument to hide: aep ai set-key {provider} YOUR_KEY[/yellow]")
         
         # Windows에서 붙여넣기가 작동하도록 일반 input() 사용
         # 보안을 위해 직접 인자로 전달하는 것을 권장
@@ -127,22 +137,34 @@ def set_api_key(
     
     # 사용 팁 표시
     console.print(f"\n[dim]Tip: Set this as default provider with:[/dim]")
-    console.print(f"  [cyan]adobe-aep ai set-default {provider}[/cyan]")
+    console.print(f"  [cyan]aep ai set-default {provider}[/cyan]")
+    
+    # Update onboarding progress if active
+    try:
+        from adobe_experience.cli.onboarding import update_onboarding_progress
+        from adobe_experience.core.config import Milestone
+        
+        if update_onboarding_progress("ai_provider", Milestone.AI_CONFIGURED):
+            console.print("\n[dim]✨ Onboarding progress updated[/dim]")
+    except Exception:
+        # Silently ignore if onboarding is not active
+        pass
 
 
+@command_metadata(CommandCategory.ENHANCED, "List configured AI providers")
 @ai_app.command("list-keys")
 def list_api_keys() -> None:
     """List stored API keys.
     
     Examples:
-        adobe-aep ai list-keys
+        aep ai list-keys
     """
     credentials = load_credentials()
     
     if not credentials:
         console.print("[yellow]No API keys stored[/yellow]")
         console.print("\nTo add a key, run:")
-        console.print("  [cyan]adobe-aep ai set-key openai YOUR_API_KEY[/cyan]")
+        console.print("  [cyan]aep ai set-key openai YOUR_API_KEY[/cyan]")
         return
     
     table = Table(title="Stored AI API Keys")
@@ -175,6 +197,7 @@ def list_api_keys() -> None:
     console.print(f"\n[dim]Location: {get_credentials_file()}[/dim]")
 
 
+@command_metadata(CommandCategory.ENHANCED, "Remove AI provider API key")
 @ai_app.command("remove-key")
 def remove_api_key(
     provider: str = typer.Argument(
@@ -185,8 +208,8 @@ def remove_api_key(
     """Remove stored API key.
     
     Examples:
-        adobe-aep ai remove-key openai
-        adobe-aep ai remove-key anthropic
+        aep ai remove-key openai
+        aep ai remove-key anthropic
     """
     provider = provider.lower()
     
@@ -203,6 +226,7 @@ def remove_api_key(
     console.print(f"[green]✓[/green] API key for [cyan]{provider}[/cyan] removed")
 
 
+@command_metadata(CommandCategory.ENHANCED, "Set default AI provider")
 @ai_app.command("set-default")
 def set_default_provider(
     provider: str = typer.Argument(
@@ -213,8 +237,8 @@ def set_default_provider(
     """Set default AI provider.
     
     Examples:
-        adobe-aep ai set-default openai
-        adobe-aep ai set-default anthropic
+        aep ai set-default openai
+        aep ai set-default anthropic
     """
     provider = provider.lower()
     
@@ -227,7 +251,7 @@ def set_default_provider(
     # Check if key exists
     if provider not in credentials:
         console.print(f"[yellow]Warning: No API key stored for '{provider}'[/yellow]")
-        console.print(f"Run: [cyan]adobe-aep ai set-key {provider} YOUR_API_KEY[/cyan]")
+        console.print(f"Run: [cyan]aep ai set-key {provider} YOUR_API_KEY[/cyan]")
         raise typer.Exit(1)
     
     # Set default

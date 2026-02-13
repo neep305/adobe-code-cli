@@ -1,4 +1,4 @@
-# Adobe AEP CLI - Integration Test Plan
+# aep CLI - Integration Test Plan
 
 **Date**: 2026-02-02  
 **Version**: v0.2.0 (Alpha)  
@@ -18,7 +18,7 @@
 
 ### Prerequisites Checklist
 
-#### 1. Adobe AEP Credentials
+#### 1. aep Credentials
 - [ ] Adobe Developer Console project created
 - [ ] OAuth Server-to-Server credentials generated
 - [ ] Required API scopes granted:
@@ -57,7 +57,7 @@
 ```powershell
 # Test OAuth authentication
 $env:ADOBE_LOG_LEVEL="DEBUG"
-adobe aep schema list --limit 1
+aep schema list --limit 1
 ```
 
 **Expected Result**:
@@ -82,10 +82,10 @@ adobe aep schema list --limit 1
 #### Test 2.1: List Existing Schemas
 ```powershell
 # List all schemas in tenant
-adobe aep schema list --limit 10
+aep schema list --limit 10
 
 # List with filtering
-adobe aep schema list --property "title==Customer*"
+aep schema list --property "title==Customer*"
 ```
 
 **Expected Result**:
@@ -96,13 +96,13 @@ adobe aep schema list --property "title==Customer*"
 #### Test 2.2: Create New XDM Schema
 ```powershell
 # Create schema manually
-adobe aep schema create `
+aep schema create `
   --name "IntegrationTestSchema" `
   --title "Integration Test Schema" `
   --description "Schema for integration testing"
 
 # Create schema with AI assistance
-adobe aep schema create `
+aep schema create `
   --name "CustomerEventSchema" `
   --use-ai `
   --description "Schema for customer interaction events"
@@ -122,10 +122,10 @@ adobe aep schema create `
 #### Test 2.3: Retrieve Schema Details
 ```powershell
 # Get schema by ID (use ID from previous test)
-adobe aep schema get <schema_id>
+aep schema get <schema_id>
 
 # Export schema to file
-adobe aep schema export <schema_id> --output integration_test_schema.json
+aep schema export <schema_id> --output integration_test_schema.json
 ```
 
 **Expected Result**:
@@ -136,7 +136,7 @@ adobe aep schema export <schema_id> --output integration_test_schema.json
 #### Test 2.4: Update Schema
 ```powershell
 # Update schema title
-adobe aep schema update <schema_id> --title "Updated Integration Test Schema"
+aep schema update <schema_id> --title "Updated Integration Test Schema"
 ```
 
 **Expected Result**:
@@ -150,7 +150,7 @@ adobe aep schema update <schema_id> --title "Updated Integration Test Schema"
 #### Test 3.1: Create Dataset
 ```powershell
 # Create dataset linked to schema
-adobe aep dataset create `
+aep dataset create `
   --name "integration_test_dataset" `
   --schema-id "<schema_id_from_phase2>" `
   --description "Dataset for integration testing"
@@ -166,10 +166,10 @@ adobe aep dataset create `
 #### Test 3.2: List Datasets
 ```powershell
 # List all datasets
-adobe aep dataset list --limit 10
+aep dataset list --limit 10
 
 # Filter by name
-adobe aep dataset list --property "name==integration*"
+aep dataset list --property "name==integration*"
 ```
 
 **Expected Result**:
@@ -178,7 +178,7 @@ adobe aep dataset list --property "name==integration*"
 
 #### Test 3.3: Get Dataset Details
 ```powershell
-adobe aep dataset get $DATASET_ID
+aep dataset get $DATASET_ID
 ```
 
 **Expected Result**:
@@ -189,10 +189,10 @@ adobe aep dataset get $DATASET_ID
 #### Test 3.4: Enable Dataset for Profile (Optional)
 ```powershell
 # Enable for Real-Time Customer Profile
-adobe aep dataset enable-profile $DATASET_ID
+aep dataset enable-profile $DATASET_ID
 
 # Enable for Identity Service
-adobe aep dataset enable-identity $DATASET_ID
+aep dataset enable-identity $DATASET_ID
 ```
 
 **Expected Result**:
@@ -206,7 +206,7 @@ adobe aep dataset enable-identity $DATASET_ID
 #### Test 4.1: Create Batch
 ```powershell
 # Create batch for dataset
-adobe aep dataset create-batch `
+aep dataset create-batch `
   --dataset $DATASET_ID `
   --format parquet
 ```
@@ -312,7 +312,7 @@ exit()
 #### Test 4.5: Upload File to Batch
 ```powershell
 # Upload single file
-adobe aep ingest upload-file `
+aep ingest upload-file `
   test_customers.parquet `
   --batch $BATCH_ID `
   --progress
@@ -326,7 +326,7 @@ adobe aep ingest upload-file `
 #### Test 4.6: Verify Upload Status
 ```powershell
 # Check file in batch
-adobe aep ingest status $BATCH_ID --file test_customers.parquet
+aep ingest status $BATCH_ID --file test_customers.parquet
 ```
 
 **Expected Result**:
@@ -337,7 +337,7 @@ adobe aep ingest status $BATCH_ID --file test_customers.parquet
 #### Test 4.7: Complete Batch
 ```powershell
 # Mark batch as complete
-adobe aep dataset complete-batch $BATCH_ID
+aep dataset complete-batch $BATCH_ID
 ```
 
 **Expected Result**:
@@ -347,7 +347,7 @@ adobe aep dataset complete-batch $BATCH_ID
 #### Test 4.8: Monitor Batch Processing
 ```powershell
 # Check batch status
-adobe aep dataset batch-status $BATCH_ID
+aep dataset batch-status $BATCH_ID
 
 # Wait for completion (polls every 5 seconds)
 # Note: This may take 5-15 minutes in AEP
@@ -370,7 +370,7 @@ adobe aep dataset batch-status $BATCH_ID
 #### Test 5.1: Batch Upload Multiple Files
 ```powershell
 # Upload multiple files concurrently
-adobe aep ingest upload-batch `
+aep ingest upload-batch `
   test_customers.parquet `
   test_events.parquet `
   --batch $BATCH_ID `
@@ -390,7 +390,7 @@ Copy-Item test_customers.parquet test_data/
 Copy-Item test_events.parquet test_data/
 
 # Upload entire directory
-adobe aep ingest upload-directory `
+aep ingest upload-directory `
   ./test_data `
   --batch $BATCH_ID `
   --pattern "*.parquet" `
@@ -405,16 +405,16 @@ adobe aep ingest upload-directory `
 #### Test 5.3: Batch Abort Workflow
 ```powershell
 # Create new batch
-$TEST_BATCH = adobe aep dataset create-batch --dataset $DATASET_ID --format parquet
+$TEST_BATCH = aep dataset create-batch --dataset $DATASET_ID --format parquet
 
 # Upload test file
-adobe aep ingest upload-file test_customers.parquet --batch $TEST_BATCH
+aep ingest upload-file test_customers.parquet --batch $TEST_BATCH
 
 # Abort batch instead of completing
-adobe aep dataset abort-batch $TEST_BATCH
+aep dataset abort-batch $TEST_BATCH
 
 # Verify status
-adobe aep dataset batch-status $TEST_BATCH
+aep dataset batch-status $TEST_BATCH
 ```
 
 **Expected Result**:
@@ -427,7 +427,7 @@ adobe aep dataset batch-status $TEST_BATCH
 python -c "import pandas as pd; df = pd.DataFrame({'id': range(1000000), 'data': ['x'*100]*1000000}); df.to_parquet('large_test.parquet')"
 
 # Upload with progress tracking
-adobe aep ingest upload-file `
+aep ingest upload-file `
   large_test.parquet `
   --batch $BATCH_ID `
   --progress
@@ -446,7 +446,7 @@ adobe aep ingest upload-file `
 ```powershell
 # Temporarily break credentials
 $env:CLIENT_ID="invalid"
-adobe aep schema list
+aep schema list
 
 # Restore credentials
 Remove-Item Env:CLIENT_ID
@@ -459,7 +459,7 @@ Remove-Item Env:CLIENT_ID
 #### Test 6.2: Network Timeout
 ```powershell
 # Test retry logic (simulate by disconnecting network briefly)
-adobe aep schema list
+aep schema list
 ```
 
 **Expected Result**:
@@ -468,7 +468,7 @@ adobe aep schema list
 
 #### Test 6.3: Invalid Dataset ID
 ```powershell
-adobe aep dataset get "invalid_dataset_id"
+aep dataset get "invalid_dataset_id"
 ```
 
 **Expected Result**:
@@ -478,10 +478,10 @@ adobe aep dataset get "invalid_dataset_id"
 #### Test 6.4: File Upload Failures
 ```powershell
 # Upload non-existent file
-adobe aep ingest upload-file nonexistent.parquet --batch $BATCH_ID
+aep ingest upload-file nonexistent.parquet --batch $BATCH_ID
 
 # Upload to non-existent batch
-adobe aep ingest upload-file test_customers.parquet --batch "invalid_batch"
+aep ingest upload-file test_customers.parquet --batch "invalid_batch"
 ```
 
 **Expected Result**:
@@ -492,7 +492,7 @@ adobe aep ingest upload-file test_customers.parquet --batch "invalid_batch"
 ```powershell
 # Make many rapid requests
 for ($i=1; $i -le 100; $i++) {
-    adobe aep schema list --limit 1
+    aep schema list --limit 1
 }
 ```
 
@@ -612,7 +612,7 @@ In Progress: 1
 ### Enable Debug Logging
 ```powershell
 $env:ADOBE_LOG_LEVEL="DEBUG"
-adobe aep schema list > debug.log 2>&1
+aep schema list > debug.log 2>&1
 ```
 
 ### Inspect HTTP Traffic

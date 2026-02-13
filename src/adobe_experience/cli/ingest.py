@@ -19,6 +19,11 @@ from rich.table import Table
 
 from adobe_experience.aep.client import AEPClient
 from adobe_experience.catalog.client import CatalogServiceClient
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
 from adobe_experience.core.config import get_config
 from adobe_experience.ingestion.bulk_upload import BulkIngestClient
 from adobe_experience.ingestion.progress_upload import BulkIngestClientWithProgress
@@ -26,7 +31,11 @@ from adobe_experience.ingestion.progress_upload import BulkIngestClientWithProgr
 console = Console()
 ingest_app = typer.Typer(help="Data ingestion commands")
 
+# Register command group metadata
+register_command_group_metadata("ingest", CommandCategory.HYBRID, "Data ingestion with progress tracking")
 
+
+@command_metadata(CommandCategory.HYBRID, "Upload file to batch with progress bar")
 @ingest_app.command("upload-file")
 async def upload_file(
     file: Path = typer.Argument(..., help="Path to file to upload", exists=True, dir_okay=False),
@@ -37,8 +46,8 @@ async def upload_file(
     """Upload a single file to an AEP batch.
     
     Example:
-        adobe aep ingest upload-file customers.json --batch abc123
-        adobe aep ingest upload-file data.csv --batch abc123 --name customers.csv
+        aep ingest upload-file customers.json --batch abc123
+        aep ingest upload-file data.csv --batch abc123 --name customers.csv
     """
     try:
         config = get_config()
@@ -71,6 +80,16 @@ async def upload_file(
                 border_style="green",
             )
             rprint(panel)
+            
+            # Update onboarding progress for data ingestion
+            try:
+                from adobe_experience.cli.onboarding import update_onboarding_progress
+                from adobe_experience.core.config import Milestone
+                
+                if update_onboarding_progress("ingest", Milestone.FIRST_UPLOAD):
+                    console.print("[dim]✨ Onboarding progress updated[/dim]")
+            except Exception:
+                pass
         else:
             console.print(f"[red]✗ Upload failed: {result.get('error', 'Unknown error')}[/red]")
             raise typer.Exit(1)
@@ -80,6 +99,7 @@ async def upload_file(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.HYBRID, "Upload and complete batch in one step")
 @ingest_app.command("upload-batch")
 async def upload_batch(
     files: List[Path] = typer.Argument(..., help="Paths to files to upload"),
@@ -89,8 +109,8 @@ async def upload_batch(
     """Upload multiple files to an AEP batch concurrently.
     
     Example:
-        adobe aep ingest upload-batch file1.json file2.json file3.json --batch abc123
-        adobe aep ingest upload-batch *.json --batch abc123 --concurrent 5
+        aep ingest upload-batch file1.json file2.json file3.json --batch abc123
+        aep ingest upload-batch *.json --batch abc123 --concurrent 5
     """
     try:
         # Validate all files exist
@@ -156,6 +176,17 @@ async def upload_batch(
         console.print(table)
         console.print(f"\n[bold]Summary:[/bold] {success_count}/{len(results)} files uploaded successfully")
         
+        # Update onboarding progress if any files were uploaded successfully
+        if success_count > 0:
+            try:
+                from adobe_experience.cli.onboarding import update_onboarding_progress
+                from adobe_experience.core.config import Milestone
+                
+                if update_onboarding_progress("ingest", Milestone.FIRST_UPLOAD):
+                    console.print("[dim]✨ Onboarding progress updated[/dim]")
+            except Exception:
+                pass
+        
         if success_count < len(results):
             raise typer.Exit(1)
             
@@ -164,6 +195,7 @@ async def upload_batch(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.HYBRID, "Upload all files from directory")
 @ingest_app.command("upload-directory")
 async def upload_directory(
     directory: Path = typer.Argument(..., help="Directory path to upload", exists=True, dir_okay=True, file_okay=False),
@@ -175,8 +207,8 @@ async def upload_directory(
     """Upload all matching files from a directory to an AEP batch.
     
     Example:
-        adobe aep ingest upload-directory ./data --batch abc123 --pattern "*.json"
-        adobe aep ingest upload-directory ./exports --batch abc123 --recursive
+        aep ingest upload-directory ./data --batch abc123 --pattern "*.json"
+        aep ingest upload-directory ./exports --batch abc123 --recursive
     """
     try:
         config = get_config()
@@ -246,6 +278,7 @@ async def upload_directory(
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Check batch status by ID")
 @ingest_app.command("status")
 async def check_status(
     batch_id: str = typer.Argument(..., help="Batch ID to check"),
@@ -254,8 +287,8 @@ async def check_status(
     """Check upload status of files in a batch.
     
     Example:
-        adobe aep ingest status abc123
-        adobe aep ingest status abc123 --file customers.json
+        aep ingest status abc123
+        aep ingest status abc123 --file customers.json
     """
     try:
         config = get_config()

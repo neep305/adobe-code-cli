@@ -9,7 +9,7 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 
 > **Current Version**: 0.2.0  
 > **Status**: Alpha - Adobe Experience Platform support available, more products coming soon  
-> **Migration**: `adobe-aep` commands are deprecated, use `adobe aep` instead
+> **Migration**: `aep` commands are deprecated, use `aep` instead
 
 ## ✨ Features
 
@@ -18,8 +18,8 @@ Unified AI-powered CLI for Adobe Experience Cloud products - AEP, Target, Analyt
 - 📊 **XDM Schema Management**: Automatically generate XDM-compliant schemas from sample data
 - 📦 **Dataset Management**: Create, list, and manage AEP datasets with full lifecycle control
 - 🔄 **Batch Ingestion**: Create batches, monitor status, and manage data ingestion workflows
-- 🔑 **Secure Key Management**: Separate AI API key storage with `adobe ai` commands
-- ♻️ **Backward Compatible**: Legacy `adobe-aep` commands still supported (with deprecation warnings)
+- 🔑 **Secure Key Management**: Separate AI API key storage with `aep ai` commands
+- ♻️ **Backward Compatible**: Legacy `aep` commands still supported (with deprecation warnings)
 - 🎯 **Multi-Product Ready**: Designed for AEP, Target, Analytics integration
 - 🛡️ **Type-Safe**: Built with Pydantic for robust data validation
 - 🎨 **Rich UI**: Beautiful terminal output with colors, tables, and progress indicators
@@ -73,7 +73,7 @@ pip install --upgrade git+https://github.com/neep305/adobe-code-cli.git
 
 **Option A: Interactive Setup (Recommended)**
 ```bash
-adobe init
+aep init
 ```
 
 **Option B: Environment Variables**
@@ -100,61 +100,61 @@ Store AI keys separately from `.env` for better security:
 
 ```bash
 # Set AI provider keys
-adobe ai set-key openai
+aep ai set-key openai
 # Enter key when prompted (paste with Ctrl+V works!)
 
-adobe ai set-key anthropic
+aep ai set-key anthropic
 
 # List stored keys
-adobe ai list-keys
+aep ai list-keys
 
 # S📖 Command Reference
 
 ### Global Commands
 
 ```bash
-adobe --help              # Show all available commands
+aep --help              # Show all available commands
 adobe version             # Show version information
-adobe init                # Interactive setup wizard
+aep init                # Interactive setup wizard
 ```
 
 ### Adobe Experience Platform (AEP)
 
 ```bash
-adobe aep --help          # AEP-specific commands
-adobe aep info            # Show AEP information
+aep --help          # AEP-specific commands
+aep info            # Show AEP information
 
 # Schema Management
-adobe aep schema create   # Create XDM schema from sample data
-adobe aep schema list     # List schemas from AEP
-adobe aep schema get      # Get schema details
+aep schema create   # Create XDM schema from sample data
+aep schema list     # List schemas from AEP
+aep schema get      # Get schema details
 
 # Dataset Management
-adobe aep dataset list    # List datasets
-adobe aep dataset create  # Create new dataset
-adobe aep dataset get     # Get dataset details
-adobe aep dataset enable-profile  # Enable for Profile
+aep dataset list    # List datasets
+aep dataset create  # Create new dataset
+aep dataset get     # Get dataset details
+aep dataset enable-profile  # Enable for Profile
 
 # Batch Management
-adobe aep dataset create-batch    # Create batch for ingestion
-adobe aep dataset batch-status    # Check batch status
-adobe aep dataset list-batches    # List batches
-adobe aep dataset complete-batch  # Complete batch
+aep dataset create-batch    # Create batch for ingestion
+aep dataset batch-status    # Check batch status
+aep dataset list-batches    # List batches
+aep dataset complete-batch  # Complete batch
 ```
 
 ### AI Provider Management
 
 ```bash
-adobe ai set-key <provider>      # Set API key (openai/anthropic)
-adobe ai list-keys                # List stored API keys
-adobe ai remove-key <provider>    # Remove API key
-adobe ai set-default <provider>   # Set default provider
+aep ai set-key <provider>      # Set API key (openai/anthropic)
+aep ai list-keys                # List stored API keys
+aep ai remove-key <provider>    # Remove API key
+aep ai set-default <provider>   # Set default provider
 ```
 
 ### Authentication
 
 ```bash
-adobe auth test           # Test AEP credentials
+aep auth test           # Test AEP credentials
 ```
 
 ### Legacy Commands (Deprecated)
@@ -208,7 +208,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 │   └── models.py   # Pydantic models
 ├── cli/            # CLI entry points
 │   ├── main.py     # Unified CLI (adobe)
-│   ├── legacy.py   # Backward compatibility (adobe-aep)
+│   ├── legacy.py   # Backward compatibility (aep)
 │   ├── schema.py   # Schema commands
 │   ├── auth.py     # Auth commands
 │   ├── ai.py       # AI key management
@@ -228,26 +228,26 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔄 Migration from v0.1.x
 
-If you're upgrading from `adobe-aep` (v0.1.x):
+If you're upgrading from `aep` (v0.1.x):
 
 ### Command Changes
 
 | Old (v0.1.x) | New (v0.2.0+) | Status |
 |--------------|---------------|--------|
-| `adobe-aep schema create` | `adobe aep schema create` | ✅ Both work |
-| `adobe-aep auth test` | `adobe auth test` | ✅ Both work |
-| - | `adobe ai set-key` | ✅ New feature |
+| `aep schema create` | `aep schema create` | ✅ Both work |
+| `aep auth test` | `aep auth test` | ✅ Both work |
+| - | `aep ai set-key` | ✅ New feature |
 
 ### Breaking Changes
 
 ❌ **None in v0.2.0** - Full backward compatibility maintained
 
-⚠️ **Deprecation Warnings**: `adobe-aep` commands show migration hints
+⚠️ **Deprecation Warnings**: `aep` commands show migration hints
 
 ### Future Breaking Changes (v1.0.0)
 
-- `adobe-aep` command will be removed
-- Only `adobe` command will be supported
+- `aep` command will be removed
+- Only `aep` command will be supported
 
 ## ⚙️ Configuration
 
@@ -265,7 +265,7 @@ AEP_SANDBOX_NAME=jason-sandbox  # or "prod"
 AEP_TENANT_ID=<your_tenant_id>
 AEP_CONTAINER_ID=tenant
 
-# AI Provider (Optional - recommended to use adobe ai set-key instead)
+# AI Provider (Optional - recommended to use aep ai set-key instead)
 ANTHROPIC_API_KEY=<your_key>
 OPENAI_API_KEY=<your_key>
 ```
@@ -296,10 +296,10 @@ Keys are stored separately in `~/.adobe/ai-credentials.json` with 600 permission
 
 ```bash
 # 1. Set up AI provider
-adobe ai set-key openai
+aep ai set-key openai
 
 # 2. Generate schema from sample data with AI
-adobe aep schema create \
+aep schema create \
   --from-sample customer_events.json \
   --name "Customer Interaction Events" \
   --description "Tracks customer interactions across channels" \
@@ -310,7 +310,7 @@ adobe aep schema create \
 cat schema.json
 
 # 4. Upload to AEP
-adobe aep schema create \
+aep schema create \
   --from-sample customer_events.json \
   --name "Customer Interaction Events" \
   --upload \
@@ -386,7 +386,7 @@ app.add_typer(target_app, name="at")
   --use-ai
 
 # Generate and upload to AEP
-adobe aep schema create \
+aep schema create \
   --from-sample data.json \
   --name "Customer Profile" \
   --upload \
@@ -397,27 +397,27 @@ adobe aep schema create \
 
 ```bash
 # List schemas
-adobe aep schema list
+aep schema list
 
 # Get schema details
-adobe aep schema get <schema-id>
+aep schema get <schema-id>
 
 # Save schema to file
-adobe aep schema get <schema-id> --output schema.json
+aep schema get <schema-id> --output schema.json
 ```bash
-adobe-aep auth test
+aep auth test
 ```
 
 ### Generate Schema from Sample Data
 
 ```bash
-adobe-aep schema create --from-sample data.json --name "Customer Events"
+aep schema create --from-sample data.json --name "Customer Events"
 ```
 
 ### Ingest Data
 
 ```bash
-adobe-aep ingest csv --file customers.csv --dataset my-dataset --auto-schema
+aep ingest csv --file customers.csv --dataset my-dataset --auto-schema
 ```
 
 ## Development

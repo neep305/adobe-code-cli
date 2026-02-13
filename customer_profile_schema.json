@@ -1,0 +1,86 @@
+{
+  "$id": "https://ns.adobe.com/customer_profile_schema",
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "title": "Customer Profile Schema",
+  "description": "XDM schema for customer profile data with preferences and behavior tracking",
+  "type": "object",
+  "version": "1.0",
+  "allOf": [
+    {
+      "$ref": "https://ns.adobe.com/xdm/context/profile"
+    }
+  ],
+  "properties": {
+    "age": {
+      "title": "Age",
+      "description": "Field: age",
+      "type": "integer",
+      "minimum": 28.0,
+      "maximum": 35.0
+    },
+    "registration_date": {
+      "title": "Registration Date",
+      "description": "Field: registration_date (detected format: iso8601)",
+      "type": "string",
+      "format": "date-time"
+    },
+    "total_purchases": {
+      "title": "Total Purchases",
+      "description": "Field: total_purchases (currency/monetary value)",
+      "type": "number",
+      "minimum": 3.0,
+      "maximum": 12.0
+    },
+    "customer_id": {
+      "title": "Customer Id",
+      "description": "Field: customer_id",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "description": "Field: status",
+      "type": "string"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "description": "Field: preferences",
+      "type": "object",
+      "properties": {
+        "newsletter": {
+          "title": "Newsletter",
+          "description": "Field: newsletter (detected as true_false) - Original values: ['true', 't'] (true), ['false', 'f'] (false)",
+          "type": "boolean"
+        },
+        "notifications": {
+          "title": "Notifications",
+          "description": "Field: notifications (detected as true_false) - Original values: ['true', 't'] (true), ['false', 'f'] (false)",
+          "type": "boolean"
+        },
+        "language": {
+          "title": "Language",
+          "description": "Field: language",
+          "type": "string"
+        }
+      }
+    },
+    "tags": {
+      "title": "Tags",
+      "description": "Field: tags",
+      "type": "array",
+      "items": {
+        "title": "Item",
+        "description": "Array item",
+        "type": "string"
+      }
+    },
+    "lifetime_value": {
+      "title": "Lifetime Value",
+      "description": "Field: lifetime_value",
+      "type": "number",
+      "minimum": 450.0,
+      "maximum": 1250.5
+    }
+  },
+  "meta:class": "https://ns.adobe.com/xdm/context/profile",
+  "meta:abstract": false
+}

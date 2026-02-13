@@ -11,18 +11,27 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from adobe_experience.aep.client import AEPClient
+from adobe_experience.cli.command_metadata import (
+    command_metadata,
+    CommandCategory,
+    register_command_group_metadata,
+)
 from adobe_experience.core.config import AEPConfig, get_config
 
 auth_app = typer.Typer(help="Authentication and credential management")
 console = Console()
 
+# Register command group metadata
+register_command_group_metadata("auth", CommandCategory.API, "Authentication and API testing")
 
+
+@command_metadata(CommandCategory.API, "Test AEP authentication")
 @auth_app.command("test")
 def test_auth() -> None:
     """Test AEP authentication and API connectivity.
     
     Examples:
-        adobe-aep auth test
+        aep auth test
     """
     try:
         console.print("[bold blue]Testing Adobe Experience Platform authentication...[/bold blue]\n")
@@ -32,7 +41,7 @@ def test_auth() -> None:
             config = get_config()
         except Exception as e:
             console.print(f"[red]✗ Failed to load configuration: {e}[/red]")
-            console.print("\n[yellow]Run 'adobe-aep init' to set up credentials[/yellow]")
+            console.print("\n[yellow]Run 'aep init' to set up credentials[/yellow]")
             raise typer.Exit(1)
         
         # Display configuration (masked)
@@ -78,12 +87,13 @@ def test_auth() -> None:
         raise typer.Exit(1)
 
 
+@command_metadata(CommandCategory.API, "Check credential status")
 @auth_app.command("status")
 def auth_status() -> None:
     """Check current authentication status.
     
     Examples:
-        adobe-aep auth status
+        aep auth status
     """
     try:
         config = get_config()
@@ -115,14 +125,14 @@ def auth_status() -> None:
         
         if all_configured:
             console.print("\n[green]✓ All credentials are configured[/green]")
-            console.print("\n[dim]Run 'adobe-aep auth test' to verify connectivity[/dim]")
+            console.print("\n[dim]Run 'aep auth test' to verify connectivity[/dim]")
         else:
             console.print("\n[yellow]⚠ Some credentials are missing[/yellow]")
-            console.print("[dim]Run 'adobe-aep init' to set up credentials[/dim]")
+            console.print("[dim]Run 'aep init' to set up credentials[/dim]")
             
     except Exception as e:
         console.print(f"[red]✗ Error loading configuration: {e}[/red]")
-        console.print("\n[yellow]Run 'adobe-aep init' to set up credentials[/yellow]")
+        console.print("\n[yellow]Run 'aep init' to set up credentials[/yellow]")
         raise typer.Exit(1)
 
 
