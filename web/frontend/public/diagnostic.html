@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Signup Functionality Diagnostic Tool</h1>
+        <p>This tool helps diagnose issues with the web application signup functionality.</p>
+        
+        <!-- Test 1: Backend Health -->
+        <div class="test-section">
+            <h2>Test 1: Backend Health Check</h2>
+            <p>Verify that the backend API is running and accessible.</p>
+            <button onclick="testBackendHealth()">Run Test</button>
+            <div id="health-result"></div>
+        </div>
+        
+        <!-- Test 2: CORS Test -->
+        <div class="test-section">
+            <h2>Test 2: CORS Configuration</h2>
+            <p>Check if CORS is properly configured for cross-origin requests.</p>
+            <button onclick="testCORS()">Run Test</button>
+            <div id="cors-result"></div>
+        </div>
+        
+        <!-- Test 3: Registration Test -->
+        <div class="test-section">
+            <h2>Test 3: Registration API Test</h2>
+            <p>Test the registration endpoint with actual data.</p>
+            
+            <label for="testEmail">Email:</label>
+            <input type="email" id="testEmail" value="diagnostic@example.com" placeholder="test@example.com">
+            
+            <label for="testPassword">Password:</label>
+            <input type="password" id="testPassword" value="testpass123" placeholder="At least 8 characters">
+            
+            <label for="testName">Name:</label>
+            <input type="text" id="testName" value="Diagnostic Test User" placeholder="Your Name">
+            
+            <button onclick="testRegistration()">Test Registration</button>
+            <div id="registration-result"></div>
+        </div>
+        
+        <!-- Test 4: Login Test -->
+        <div class="test-section">
+            <h2>Test 4: Login Test</h2>
+            <p>Test login with credentials (use the same email/password from registration test).</p>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <!-- Environment Info -->
+        <div class="test-section">
+            <h2>Environment Information</h2>
+            <button onclick="showEnvironment()">Show Info</button>
+            <div id="env-result"></div>
+        </div>
+    </div>
+    
+    <script>
+        const BACKEND_URL = 'http://localhost:8000';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+        
+        async function testBackendHealth() {
+            const resultId = 'health-result';
+            showResult(resultId, '⏳ Testing...', 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(resultId, 
+                        `✅ Backend is healthy!\n\nResponse:\n${JSON.stringify(data, null, 2)}`,
+                        'success'
+                    );
+                } else {
+                    showResult(resultId, 
+                        `❌ Backend returned error (${response.status}):\n${JSON.stringify(data, null, 2)}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(resultId, 
+                    `❌ Failed to connect to backend:\n${error.message}\n\nPossible causes:\n- Backend is not running\n- Wrong URL (currently: ${BACKEND_URL})\n- Network issues`,
+                    'error'
+                );
+            }
+        }
+        
+        async function testCORS() {
+            const resultId = 'cors-result';
+            showResult(resultId, '⏳ Testing CORS...', 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+                };
+                
+                if (corsHeaders['Access-Control-Allow-Origin']) {
+                    showResult(resultId, 
+                        `✅ CORS is configured!\n\nCORS Headers:\n${JSON.stringify(corsHeaders, null, 2)}`,
+                        'success'
+                    );
+                } else {
+                    showResult(resultId, 
+                        `⚠️ CORS might not be properly configured.\n\nReceived headers:\n${JSON.stringify(corsHeaders, null, 2)}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(resultId, 
+                    `❌ CORS test failed:\n${error.message}`,
+                    'error'
+                );
+            }
+        }
+        
+        async function testRegistration() {
+            const resultId = 'registration-result';
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const name = document.getElementById('testName').value;
+            
+            if (!email || !password || !name) {
+                showResult(resultId, '❌ Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showResult(resultId, '❌ Password must be at least 8 characters', 'error');
+                return;
+            }
+            
+            showResult(resultId, '⏳ Registering user...', 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password, name })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Store token for login test
+                    sessionStorage.setItem('test_token', data.access_token);
+                    sessionStorage.setItem('test_email', email);
+                    sessionStorage.setItem('test_password', password);
+                    
+                    showResult(resultId, 
+                        `✅ Registration successful!\n\nResponse:\n${JSON.stringify(data, null, 2)}\n\nToken stored for login test.`,
+                        'success'
+                    );
+                } else {
+                    showResult(resultId, 
+                        `❌ Registration failed (${response.status}):\n${JSON.stringify(data, null, 2)}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(resultId, 
+                    `❌ Registration request failed:\n${error.message}\n\nThis could indicate:\n- Network connectivity issues\n- CORS misconfiguration\n- Backend not accessible`,
+                    'error'
+                );
+            }
+        }
+        
+        async function testLogin() {
+            const resultId = 'login-result';
+            const email = sessionStorage.getItem('test_email') || document.getElementById('testEmail').value;
+            const password = sessionStorage.getItem('test_password') || document.getElementById('testPassword').value;
+            
+            if (!email || !password) {
+                showResult(resultId, '❌ Please run registration test first or fill in credentials', 'error');
+                return;
+            }
+            
+            showResult(resultId, '⏳ Logging in...', 'info');
+            
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', email);
+                formData.append('password', password);
+                
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(resultId, 
+                        `✅ Login successful!\n\nResponse:\n${JSON.stringify(data, null, 2)}`,
+                        'success'
+                    );
+                } else {
+                    showResult(resultId, 
+                        `❌ Login failed (${response.status}):\n${JSON.stringify(data, null, 2)}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(resultId, 
+                    `❌ Login request failed:\n${error.message}`,
+                    'error'
+                );
+            }
+        }
+        
+        function showEnvironment() {
+            const resultId = 'env-result';
+            const info = {
+                'Page URL': window.location.href,
+                'Origin': window.location.origin,
+                'Backend URL': BACKEND_URL,
+                'User Agent': navigator.userAgent,
+                'Browser': navigator.appName,
+                'Platform': navigator.platform,
+                'Language': navigator.language,
+                'Cookies Enabled': navigator.cookieEnabled,
+                'Local Storage Available': typeof(Storage) !== "undefined",
+                'Current Time': new Date().toISOString()
+            };
+            
+            showResult(resultId, 
+                `Browser & Environment Info:\n\n${JSON.stringify(info, null, 2)}`,
+                'info'
+            );
+        }
+        
+        // Auto-run health check on load
+        window.onload = () => {
+            testBackendHealth();
+        };
+    </script>
+</body>
+</html>
