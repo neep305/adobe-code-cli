@@ -10,6 +10,7 @@ from adobe_experience.schema.models import (
     XDMDataType,
     XDMField,
     XDMFieldFormat,
+    XDMFieldGroup,
     XDMIdentity,
     XDMSchema,
     XDMSchemaRef,
@@ -577,6 +578,39 @@ class XDMSchemaRegistry:
         return await self.client.post(
             path,
             json=schema_data,
+            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+        )
+
+    async def create_field_group(self, field_group: "XDMFieldGroup") -> Dict[str, Any]:
+        """Create field group in AEP Schema Registry.
+
+        Args:
+            field_group: XDM field group to create.
+
+        Returns:
+            Created field group response.
+        """
+        path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups"
+        
+        try:
+            field_group_data = field_group.model_dump(by_alias=True, exclude_none=True)
+            # Debug: Save to file and check serialization
+            import json
+            from pathlib import Path
+            debug_file = Path("debug_fieldgroup.json")
+            debug_file.write_text(json.dumps(field_group_data, indent=2), encoding="utf-8")
+            print(f"DEBUG: Field group data saved to {debug_file}")
+            print(f"DEBUG: Field group data type: {type(field_group_data)}")
+            print(f"DEBUG: allOf type: {type(field_group_data.get('allOf'))}")
+        except Exception as e:
+            print(f"DEBUG: Serialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise ValueError(f"Failed to serialize field group: {e}") from e
+
+        return await self.client.post(
+            path,
+            json=field_group_data,
             headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
         )
 

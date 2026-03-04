@@ -19,7 +19,12 @@ from adobe_experience.cli.schema import schema_app
 from adobe_experience.cli.dataset import dataset_app
 from adobe_experience.cli.ingest import ingest_app
 from adobe_experience.cli.dataflow import dataflow_app
+from adobe_experience.cli.segment import segment_app
+from adobe_experience.cli.destination import destination_app
 from adobe_experience.cli.onboarding import onboarding_app
+from adobe_experience.cli.web import web_app
+from adobe_experience.cli.llm import llm_app
+from adobe_experience.cli.generate import generate_app
 from adobe_experience.core.config import get_config
 from adobe_experience.schema.xdm import XDMSchemaAnalyzer, XDMSchemaRegistry
 
@@ -37,11 +42,16 @@ app.add_typer(schema_app, name="schema", help="🔵⚡ XDM schema management")
 app.add_typer(dataset_app, name="dataset", help="🔵 Dataset and batch operations")
 app.add_typer(ingest_app, name="ingest", help="⚡ Data ingestion with progress")
 app.add_typer(dataflow_app, name="dataflow", help="🔵 Flow Service operations")
+app.add_typer(segment_app, name="segment", help="🔵 Segment and audience operations")
+app.add_typer(destination_app, name="destination", help="🔵 Destination activation operations")
 app.add_typer(onboarding_app, name="onboarding", help="🟢 Interactive tutorials")
 
 # Register common commands
 app.add_typer(auth_app, name="auth", help="Authentication management")
 app.add_typer(ai_app, name="ai", help="AI provider configuration")
+app.add_typer(web_app, name="web", help="🌐 Web UI server management")
+app.add_typer(llm_app, name="llm", help="🤖 LLM-powered interactive assistant")
+app.add_typer(generate_app, name="generate", help="🟢 Generate test data using AI")
 
 console = Console()
 

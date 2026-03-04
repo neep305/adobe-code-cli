@@ -89,7 +89,9 @@ AEP_TECHNICAL_ACCOUNT_ID=your_tech_account_id@techacct.adobe.com
 AEP_SANDBOX_NAME=jason-sandbox
 AEP_TENANT_ID=your_tenant_id
 
-# AI Provider (choose one or both)
+# AI Provider Configuration
+AI_PROVIDER=auto              # auto, openai, or anthropic
+AI_MODEL=gpt-4o               # Default model
 ANTHROPIC_API_KEY=your_anthropic_key
 OPENAI_API_KEY=your_openai_key
 ```
@@ -99,16 +101,24 @@ OPENAI_API_KEY=your_openai_key
 Store AI keys separately from `.env` for better security:
 
 ```bash
-# Set AI provider keys
+# Set AI provider keys (hidden input mode)
 aep ai set-key openai
-# Enter key when prompted (paste with Ctrl+V works!)
+# Enter key when prompted (paste with Ctrl+V/Right-click works!)
 
 aep ai set-key anthropic
 
+# Verify configuration
+aep ai status
+
+# Test API connectivity
+aep ai test
+
+# Set default provider (optional)
+aep ai set-default openai
+
 # List stored keys
 aep ai list-keys
-
-# S📖 Command Reference
+```📖 Command Reference
 
 ### Global Commands
 
@@ -145,10 +155,24 @@ aep dataset complete-batch  # Complete batch
 ### AI Provider Management
 
 ```bash
-aep ai set-key <provider>      # Set API key (openai/anthropic)
+# Configuration and Status
+aep ai status                   # Show current AI provider configuration
+aep ai status --verbose         # Show detailed configuration with file paths
+aep ai test                     # Test API connectivity for configured providers
+aep ai test <provider>          # Test specific provider (openai/anthropic)
+
+# Key Management
+aep ai set-key <provider>       # Set API key with hidden input (openai/anthropic)
 aep ai list-keys                # List stored API keys
 aep ai remove-key <provider>    # Remove API key
 aep ai set-default <provider>   # Set default provider
+
+# LLM Assistant (AI-powered)
+aep llm chat                    # Interactive mode with default provider
+aep llm chat --provider openai  # Use OpenAI (ChatGPT)
+aep llm chat --provider anthropic  # Use Anthropic (Claude)
+aep llm chat "query"            # One-shot query with default provider
+aep llm chat --model gpt-4o "query"  # Use specific model
 ```
 
 ### Authentication
@@ -156,6 +180,69 @@ aep ai set-default <provider>   # Set default provider
 ```bash
 aep auth test           # Test AEP credentials
 ```
+
+### Web UI Server Management
+
+Manage the full-stack web UI (FastAPI + Next.js + PostgreSQL + Redis) directly from the CLI.
+
+**Start web services**
+
+```bash
+# Docker mode (recommended - includes all services)
+aep web start                       # Start full stack with docker-compose
+aep web start --mode docker         # Same as above
+
+# Local development mode (requires Node.js/npm)
+aep web start --mode dev            # Start backend + frontend locally
+
+# Individual services
+aep web start --mode backend        # Start only backend (port 8000)
+aep web start --mode frontend       # Start only frontend (port 3000)
+
+# Custom ports
+aep web start --backend-port 8080 --frontend-port 3001
+
+# Run in background without opening browser
+aep web start --detach --no-browser
+```
+
+**Check service status**
+
+```bash
+aep web status                      # Show running services with ports and PIDs
+```
+
+**View logs**
+
+```bash
+aep web logs backend                # View backend logs
+aep web logs frontend               # View frontend logs
+aep web logs backend --follow       # Follow logs in real-time
+aep web logs frontend --tail 50     # Show last 50 lines
+```
+
+**Stop services**
+
+```bash
+aep web stop                        # Stop all services
+aep web stop --mode docker          # Stop Docker services
+aep web stop --mode backend         # Stop only backend
+aep web stop --mode frontend        # Stop only frontend
+```
+
+**Open in browser**
+
+```bash
+aep web open                        # Open frontend (http://localhost:3000)
+aep web open app                    # Same as above
+aep web open api-docs               # Open API docs (http://localhost:8000/api/docs)
+```
+
+**Deployment modes:**
+- **docker** (default): Best for production-like environment, includes PostgreSQL + Redis
+- **dev**: Local development with hot reload
+- **backend**: API server only (good for testing API endpoints)
+- **frontend**: Frontend only (requires backend running separately)
 
 ### Legacy Commands (Deprecated)
 
@@ -265,10 +352,24 @@ AEP_SANDBOX_NAME=jason-sandbox  # or "prod"
 AEP_TENANT_ID=<your_tenant_id>
 AEP_CONTAINER_ID=tenant
 
-# AI Provider (Optional - recommended to use aep ai set-key instead)
+# AI Provider Configuration (Optional)
+AI_PROVIDER=auto              # auto (default), openai, or anthropic
+AI_MODEL=gpt-4o               # Default model for LLM assistant
+
+# AI Provider API Keys (Optional - recommended to use aep ai set-key instead)
 ANTHROPIC_API_KEY=<your_key>
 OPENAI_API_KEY=<your_key>
 ```
+
+**Provider Selection Priority:**
+1. CLI `--provider` flag (highest)
+2. `AI_PROVIDER` environment variable / config
+3. Auto-detection (uses first available API key)
+
+**Model Selection Priority:**
+1. CLI `--model` flag (highest)
+2. `AI_MODEL` environment variable / config
+3. Provider-specific default
 
 ### AI Key Storage
 
@@ -276,6 +377,7 @@ Keys are stored separately in `~/.adobe/ai-credentials.json` with 600 permission
 
 ```json
 {
+  "default_provider": "openai",
   "openai": {
     "api_key": "sk-...",
     "model": "gpt-4o"
@@ -292,11 +394,43 @@ Keys are stored separately in `~/.adobe/ai-credentials.json` with 600 permission
 
 ## 💡 Examples
 
+### AI-Powered LLM Assistant
+
+Use natural language to query and analyze your AEP environment:
+
+```bash
+# Interactive mode with default provider
+aep llm chat
+
+# Use specific provider (OpenAI or Anthropic)
+aep llm chat --provider openai
+aep llm chat --provider anthropic
+
+# One-shot queries
+aep llm chat "list all schemas"
+aep llm chat "show failing dataflows from last 7 days"
+aep llm chat "what datasets are enabled for profile?"
+aep llm chat --provider anthropic "analyze dataflow health"
+
+# Use specific model
+aep llm chat --model gpt-4o "list schemas"
+aep llm chat --model claude-3-5-sonnet-20241022 "show datasets"
+
+# Check provider status
+aep ai status
+
+# Test connectivity
+aep ai test
+aep ai test openai
+aep ai test anthropic
+```
+
 ### End-to-End: Generate and Upload Schema
 
 ```bash
 # 1. Set up AI provider
 aep ai set-key openai
+aep ai status  # Verify configuration
 
 # 2. Generate schema from sample data with AI
 aep schema create \

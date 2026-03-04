@@ -100,6 +100,15 @@ class AEPConfig(BaseSettings):
         return Path.home() / ".adobe" / "credentials.json"
 
 
+def get_config_dir() -> Path:
+    """Get AEP configuration directory path.
+    
+    Returns:
+        Path to ~/.adobe directory where config and cache are stored
+    """
+    return Path.home() / ".adobe"
+
+
 def get_config() -> AEPConfig:
     """Get application configuration."""
     return AEPConfig()
@@ -389,4 +398,39 @@ def load_qa_cache() -> QACache:
 def save_qa_cache(cache: QACache) -> bool:
     """Save Q&A cache."""
     return cache.save()
+
+
+def get_ai_credentials() -> Dict[str, str]:
+    """Get AI provider credentials from stored configuration.
+    
+    Returns:
+        Dict with available AI provider keys ('anthropic_key', 'openai_key')
+    """
+    credentials = {}
+    
+    # Try to load from CLI credentials file first
+    adobe_dir = Path.home() / ".adobe"
+    cred_file = adobe_dir / "ai-credentials.json"
+    
+    if cred_file.exists():
+        try:
+            stored_creds = json.loads(cred_file.read_text(encoding="utf-8"))
+            if "anthropic" in stored_creds:
+                credentials["anthropic_key"] = stored_creds["anthropic"]
+            if "openai" in stored_creds:
+                credentials["openai_key"] = stored_creds["openai"]
+        except Exception:
+            pass
+    
+    # Fallback to environment variables
+    try:
+        import os
+        if not credentials.get("anthropic_key") and os.getenv("ANTHROPIC_API_KEY"):
+            credentials["anthropic_key"] = os.getenv("ANTHROPIC_API_KEY")
+        if not credentials.get("openai_key") and os.getenv("OPENAI_API_KEY"):
+            credentials["openai_key"] = os.getenv("OPENAI_API_KEY")
+    except Exception:
+        pass
+    
+    return credentials
 

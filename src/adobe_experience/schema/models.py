@@ -84,6 +84,45 @@ class XDMSchemaRef(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class XDMFieldGroup(BaseModel):
+    """XDM field group (mixin) definition."""
+
+    field_group_id: str = Field(..., alias="$id", description="Field group ID")
+    schema_ref: str = Field(
+        default="http://json-schema.org/draft-06/schema#",
+        alias="$schema",
+        description="JSON Schema version",
+    )
+    title: str = Field(..., description="Field group title")
+    description: Optional[str] = Field(None, description="Field group description")
+    type: XDMDataType = Field(default=XDMDataType.OBJECT, description="Root type (always object)")
+    
+    # Compatible classes
+    meta_intended_to_extend: List[str] = Field(
+        ...,
+        alias="meta:intendedToExtend",
+        description="Classes this field group is compatible with",
+    )
+    
+    # Field definitions
+    definitions: Dict[str, Any] = Field(
+        ...,
+        description="Field definitions under _{TENANT_ID}",
+    )
+    
+    # Composition
+    all_of: List[XDMSchemaRef] = Field(
+        ...,
+        alias="allOf",
+        description="Reference to definitions",
+    )
+    
+    # Metadata
+    meta_abstract: bool = Field(default=False, alias="meta:abstract")
+    
+    model_config = {"populate_by_name": True}
+
+
 class XDMSchema(BaseModel):
     """XDM schema definition."""
 
