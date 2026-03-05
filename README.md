@@ -581,6 +581,118 @@ src/adobe_aep/
 └── cli/            # Typer CLI commands
 ```
 
+## 🏗️ Technology Stack
+
+### Core Framework & CLI
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Python** | 3.10+ | Core language | [python.org](https://www.python.org/) |
+| **Typer** | 0.9+ | CLI framework with type hints | [typer.tiangolo.com](https://typer.tiangolo.com/) |
+| **Pydantic** | 2.0+ | Data validation and settings management | [docs.pydantic.dev](https://docs.pydantic.dev/) |
+| **Rich** | 13.0+ | Terminal UI (tables, progress bars, colors) | [rich.readthedocs.io](https://rich.readthedocs.io/) |
+
+### HTTP & API Integration
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **httpx** | 0.24+ | Async HTTP client for API calls | [www.python-httpx.org](https://www.python-httpx.org/) |
+| **Adobe IMS API** | - | OAuth Server-to-Server authentication | [Adobe Auth Guide](https://experienceleague.adobe.com/en/docs/platform-learn/tutorials/platform-api-authentication) |
+| **Adobe Platform API** | - | AEP REST API integration | [Adobe API Reference](https://developer.adobe.com/experience-platform-apis/) |
+
+### AI & LLM Integration
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Anthropic Claude** | - | AI inference for schema analysis | [docs.anthropic.com](https://docs.anthropic.com/) |
+| **OpenAI GPT** | - | AI inference alternative | [platform.openai.com](https://platform.openai.com/) |
+| **Tool Calling** | - | LLM function calling for structured output | - |
+
+### Data Processing
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Pandas** | 2.0+ | Data frame processing (optional) | [pandas.pydata.org](https://pandas.pydata.org/) |
+| **PyArrow** | 12.0+ | Parquet file handling (optional) | [arrow.apache.org](https://arrow.apache.org/docs/python/) |
+| **Faker** | 18.0+ | Test data generation | [faker.readthedocs.io](https://faker.readthedocs.io/) |
+
+### Schema & ERD
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Mermaid** | - | ERD diagram parsing | [mermaid.js.org](https://mermaid.js.org/) |
+| **XDM** | - | Adobe Experience Data Model | [XDM Schema Guide](https://experienceleague.adobe.com/en/docs/experience-platform/xdm/home) |
+
+### Testing
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **pytest** | 7.4+ | Test framework | [docs.pytest.org](https://docs.pytest.org/) |
+| **pytest-asyncio** | 0.21+ | Async test support | [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) |
+| **pytest-mock** | 3.11+ | Mocking utilities | [pytest-mock](https://pytest-mock.readthedocs.io/) |
+| **pytest-cov** | 4.1+ | Code coverage reporting | [pytest-cov](https://pytest-cov.readthedocs.io/) |
+
+### Code Quality
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Black** | 23.0+ | Code formatter | [black.readthedocs.io](https://black.readthedocs.io/) |
+| **Ruff** | 0.0.285+ | Fast Python linter | [docs.astral.sh/ruff](https://docs.astral.sh/ruff/) |
+| **mypy** | 1.4+ | Static type checker | [mypy-lang.org](https://mypy-lang.org/) |
+
+### Web UI (Optional)
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **FastAPI** | 0.100+ | Backend REST API | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) |
+| **Next.js** | 14.0+ | React frontend framework | [nextjs.org](https://nextjs.org/) |
+| **PostgreSQL** | 15.0+ | Relational database | [postgresql.org](https://www.postgresql.org/) |
+| **Redis** | 7.0+ | Caching layer | [redis.io](https://redis.io/) |
+| **shadcn/ui** | - | UI component library | [ui.shadcn.com](https://ui.shadcn.com/) |
+| **Tailwind CSS** | 3.0+ | CSS framework | [tailwindcss.com](https://tailwindcss.com/) |
+
+### Development Tools
+
+| Technology | Purpose |
+|------------|---------|
+| **Git** | Version control |
+| **Docker** | Container runtime (for web UI) |
+| **Docker Compose** | Multi-container orchestration |
+| **pip** | Python package manager |
+| **venv** | Python virtual environments |
+
+### Key Architecture Decisions
+
+**1. Typer for CLI Framework**
+- Type-safe command definitions with Python type hints
+- Automatic help generation and validation
+- Sub-command architecture for multi-product support
+- Rich integration for beautiful terminal output
+
+**2. Pydantic for Data Validation**
+- XDM schema modeling with strict type checking
+- Configuration management with settings validation
+- API response parsing and validation
+- Model serialization for API requests
+
+**3. Async HTTP with httpx**
+- Non-blocking API calls for better performance
+- Connection pooling and retry logic
+- Streaming support for large file uploads
+- Type-safe request/response handling
+
+**4. Multi-Provider AI (OpenAI + Anthropic)**
+- Provider abstraction layer for flexibility
+- Tool calling for structured schema generation
+- Automatic fallback and provider selection
+- Secure credential storage
+
+**5. Modular Architecture**
+- Separation of concerns (auth, API clients, CLI)
+- Easy extensibility for new Adobe products
+- Shared core utilities across modules
+- Backward compatibility layer for migrations
+
 ## Resources
 
 - [Adobe Experience Platform Docs](https://experienceleague.adobe.com/en/docs/experience-platform)
