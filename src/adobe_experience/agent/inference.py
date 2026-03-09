@@ -9,6 +9,7 @@ from anthropic import Anthropic
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
+from adobe_experience.agent.tracing import get_tracer, trace_call
 from adobe_experience.core.config import AEPConfig
 from adobe_experience.schema.models import XDMSchema
 
@@ -233,6 +234,7 @@ Analysis:
         from adobe_experience.core.config import get_config
 
         self.config = config or get_config()
+        self.tracer = get_tracer("inference")
         self.anthropic = None
         self.openai = None
         self.logger = logging.getLogger(__name__)
@@ -268,6 +270,7 @@ Analysis:
         else:
             self.active_client = None
 
+    @trace_call("inference.generate_schema_with_ai", scope="inference")
     async def generate_schema_with_ai(
         self,
         request: SchemaGenerationRequest,
@@ -552,6 +555,7 @@ Recommend standard Adobe field groups when applicable."""
             data_quality_issues=ai_analysis.get("data_quality_issues", []),
         )
 
+    @trace_call("inference.infer_field_type_with_context", scope="inference")
     async def infer_field_type_with_context(
         self,
         field_name: str,
@@ -670,6 +674,7 @@ Provide comprehensive type inference with edge case detection and handling recom
             reasoning=f"Heuristic inference from sample values (AI unavailable)",
         )
 
+    @trace_call("inference.suggest_identity_namespace", scope="inference")
     async def suggest_identity_namespace(
         self,
         field_name: str,
@@ -727,6 +732,7 @@ Respond with JSON:
 
         return json.loads(ai_output)
 
+    @trace_call("inference.validate_schema_against_data", scope="inference")
     async def validate_schema_against_data(
         self,
         schema: Dict[str, Any],
@@ -918,6 +924,7 @@ Provide a brief 2-3 sentence summary of the main problems and recommended action
             # If AI summary fails, continue without it
             return None
 
+    @trace_call("inference.analyze_dataset_relationships", scope="inference")
     async def analyze_dataset_relationships(
         self,
         scan_result: "DatasetScanResult",

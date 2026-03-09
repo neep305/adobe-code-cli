@@ -351,6 +351,27 @@ class RunActivity(BaseModel):
 class RunMetrics(BaseModel):
     """Metrics for a dataflow run."""
 
+    records_read: Optional[int] = Field(
+        None,
+        alias="recordsRead",
+        description="Number of records read",
+    )
+    records_written: Optional[int] = Field(
+        None,
+        alias="recordsWritten",
+        description="Number of records written",
+    )
+    records_failed: Optional[int] = Field(
+        None,
+        alias="recordsFailed",
+        description="Number of records failed",
+    )
+    files_read: Optional[int] = Field(
+        None,
+        alias="filesRead",
+        description="Number of files read",
+    )
+
     duration_summary: Optional[DurationSummary] = Field(
         None,
         alias="durationSummary",
@@ -396,6 +417,10 @@ class DataflowRun(BaseModel):
     metrics: Optional[RunMetrics] = Field(
         None,
         description="Run metrics",
+    )
+    status: Optional[RunStatusDetail] = Field(
+        None,
+        description="Run status and error details",
     )
     activities: Optional[List[RunActivity]] = Field(
         None,
@@ -458,13 +483,6 @@ class DataflowRun(BaseModel):
     etag: Optional[str] = Field(None, description="Entity tag")
 
     model_config = {"populate_by_name": True}
-    
-    @property
-    def status(self) -> Optional[str]:
-        """Get run status from metrics."""
-        if self.metrics and self.metrics.status_summary:
-            return self.metrics.status_summary.status
-        return None
 
 
 # ==================== Connection Models ====================

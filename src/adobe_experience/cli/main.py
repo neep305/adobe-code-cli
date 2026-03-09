@@ -25,6 +25,7 @@ from adobe_experience.cli.onboarding import onboarding_app
 from adobe_experience.cli.web import web_app
 from adobe_experience.cli.llm import llm_app
 from adobe_experience.cli.generate import generate_app
+from adobe_experience.cli.analyze import analyze_app
 from adobe_experience.core.config import get_config
 from adobe_experience.schema.xdm import XDMSchemaAnalyzer, XDMSchemaRegistry
 
@@ -52,6 +53,7 @@ app.add_typer(ai_app, name="ai", help="AI provider configuration")
 app.add_typer(web_app, name="web", help="🌐 Web UI server management")
 app.add_typer(llm_app, name="llm", help="🤖 LLM-powered interactive assistant")
 app.add_typer(generate_app, name="generate", help="🟢 Generate test data using AI")
+app.add_typer(analyze_app, name="analyze", help="🟢 Supervisor-driven data analysis")
 
 console = Console()
 

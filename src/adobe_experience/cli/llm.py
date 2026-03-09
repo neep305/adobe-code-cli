@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
 
+from adobe_experience.agent.tracing import get_tracer
 from adobe_experience.cli.llm_tools import CommandExecutor, ToolRegistry, register_safe_tools
 from adobe_experience.cli.llm_tools.schemas import LLMSession
 from adobe_experience.core.config import get_config
@@ -142,6 +143,7 @@ def chat(
             session_id=str(uuid4()),
             max_turns=max_turns
         )
+        tracer = get_tracer("llm-chat")
         
         # One-shot mode
         if query:
@@ -151,13 +153,13 @@ def chat(
                 asyncio.run(_handle_anthropic_turn(
                     llm_client, query, available_tools,
                     system_prompt, session, executor,
-                    verbose, max_turns, model
+                    verbose, max_turns, model, tracer
                 ))
             else:  # openai
                 asyncio.run(_handle_openai_turn(
                     llm_client, query, available_tools,
                     system_prompt, session, executor,
-                    verbose, max_turns, model
+                    verbose, max_turns, model, tracer
                 ))
             return
         
@@ -198,13 +200,13 @@ def chat(
                     asyncio.run(_handle_anthropic_turn(
                         llm_client, user_input, available_tools,
                         system_prompt, session, executor,
-                        verbose, max_turns, model
+                        verbose, max_turns, model, tracer
                     ))
                 else:  # openai
                     asyncio.run(_handle_openai_turn(
                         llm_client, user_input, available_tools,
                         system_prompt, session, executor,
-                        verbose, max_turns, model
+                        verbose, max_turns, model, tracer
                     ))
                 
             except KeyboardInterrupt:
@@ -242,7 +244,8 @@ async def _handle_anthropic_turn(
     executor: CommandExecutor,
     verbose: bool,
     max_turns: int,
-    model: str
+    model: str,
+    tracer,
 ) -> None:
     """Handle one conversation turn with Anthropic tool calling loop.
     
@@ -266,35 +269,60 @@ async def _handle_anthropic_turn(
     turn_count = 0
     
     try:
-        # Initial LLM call
-        with console.status("[bold blue]🤔 Thinking..."):
-            response = client.messages.create(
-                model=model,
-                max_tokens=4096,
-                system=system_prompt,
-                messages=messages,
-                tools=tools
-            )
+        with tracer.span(
+            "llm.anthropic.turn",
+            inputs={"query": query, "model": model, "tool_count": len(tools)},
+            metadata={"provider": "anthropic", "session_id": session.session_id},
+            run_type="chain",
+        ) as turn_span:
+            # Initial LLM call
+            with console.status("[bold blue]🤔 Thinking..."):
+                with tracer.span(
+                    "llm.anthropic.create",
+                    inputs={"message_count": len(messages)},
+                    metadata={"phase": "initial"},
+                    run_type="llm",
+                ):
+                    response = client.messages.create(
+                        model=model,
+                        max_tokens=4096,
+                        system=system_prompt,
+                        messages=messages,
+                        tools=tools
+                    )
         
         # Tool calling loop
-        while response.stop_reason == "tool_use" and turn_count < max_turns:
-            turn_count += 1
-            tool_results = []
-            tool_names = []
+            while response.stop_reason == "tool_use" and turn_count < max_turns:
+                turn_count += 1
+                tool_results = []
+                tool_names = []
             
             # Execute each tool call
-            for content_block in response.content:
-                if content_block.type == "tool_use":
-                    tool_name = content_block.name
-                    tool_input = content_block.input
-                    tool_names.append(tool_name)
+                for content_block in response.content:
+                    if content_block.type == "tool_use":
+                        tool_name = content_block.name
+                        tool_input = content_block.input
+                        tool_names.append(tool_name)
                     
                     if verbose:
                         params_str = _format_params(tool_input)
                         console.print(f"[dim]🔧 Calling: {tool_name}({params_str})[/dim]")
                     
-                    # Execute tool
-                    result = await executor.execute_tool(tool_name, tool_input)
+                        # Execute tool
+                        with tracer.span(
+                            "llm.tool.execute",
+                            inputs={"tool_name": tool_name, "tool_input": tool_input},
+                            metadata={"provider": "anthropic"},
+                            run_type="tool",
+                        ) as tool_span:
+                            result = await executor.execute_tool(tool_name, tool_input)
+                            tool_span.set_outputs(
+                                {
+                                    "success": result.success,
+                                    "error": result.error,
+                                    "execution_time_seconds": result.execution_time_seconds,
+                                }
+                            )
                     
                     # Update metrics
                     session.update_tool_metrics(
@@ -310,51 +338,65 @@ async def _handle_anthropic_turn(
                     elif verbose:
                         console.print(f"[dim]✓ Completed in {result.execution_time_seconds:.2f}s[/dim]")
                     
-                    # Add tool result
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": content_block.id,
-                        "content": result.output if result.success else f"Error: {result.error}\n\nSuggestion: {result.suggestion or 'N/A'}"
-                    })
+                        # Add tool result
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": content_block.id,
+                            "content": result.output if result.success else f"Error: {result.error}\n\nSuggestion: {result.suggestion or 'N/A'}"
+                        })
             
             # Add assistant's response with tool calls to session
-            session.add_turn("assistant", response.content, tool_calls=tool_names)
+                session.add_turn("assistant", response.content, tool_calls=tool_names)
             
             # Add tool results to session
-            session.add_turn("user", tool_results)
+                session.add_turn("user", tool_results)
             
             # Prepare updated messages
-            messages = _prepare_messages(session)
+                messages = _prepare_messages(session)
             
             # Continue conversation
-            with console.status("[bold blue]🤔 Analyzing results..."):
-                response = client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    system=system_prompt,
-                    messages=messages,
-                    tools=tools
-                )
+                with console.status("[bold blue]🤔 Analyzing results..."):
+                    with tracer.span(
+                        "llm.anthropic.create",
+                        inputs={"message_count": len(messages)},
+                        metadata={"phase": "followup"},
+                        run_type="llm",
+                    ):
+                        response = client.messages.create(
+                            model=model,
+                            max_tokens=4096,
+                            system=system_prompt,
+                            messages=messages,
+                            tools=tools
+                        )
         
-        # Extract final response
-        assistant_message = ""
-        for block in response.content:
-            if block.type == "text":
-                assistant_message += block.text
+            # Extract final response
+            assistant_message = ""
+            for block in response.content:
+                if block.type == "text":
+                    assistant_message += block.text
         
-        if not assistant_message:
-            assistant_message = "No response generated"
+            if not assistant_message:
+                assistant_message = "No response generated"
         
-        # Display response
-        console.print(f"\n[green]Assistant:[/green]")
-        console.print(Panel(assistant_message, border_style="green", padding=(1, 2)))
+            # Display response
+            console.print(f"\n[green]Assistant:[/green]")
+            console.print(Panel(assistant_message, border_style="green", padding=(1, 2)))
         
-        # Add final response to session
-        session.add_turn("assistant", response.content)
+            # Add final response to session
+            session.add_turn("assistant", response.content)
         
-        # Show turn limit warning if reached
-        if turn_count >= max_turns:
-            console.print(f"\n[yellow]⚠️  Reached maximum turn limit ({max_turns})[/yellow]")
+            # Show turn limit warning if reached
+            if turn_count >= max_turns:
+                console.print(f"\n[yellow]⚠️  Reached maximum turn limit ({max_turns})[/yellow]")
+
+            turn_span.set_outputs(
+                {
+                    "turn_count": turn_count,
+                    "assistant_message_length": len(assistant_message),
+                    "tool_calls": sum(1 for turn in session.conversation_history if turn.tool_calls),
+                }
+            )
     
     except Exception as e:
         logger.exception("Error in LLM conversation")
@@ -376,7 +418,8 @@ async def _handle_openai_turn(
     executor: CommandExecutor,
     verbose: bool,
     max_turns: int,
-    model: str
+    model: str,
+    tracer,
 ) -> None:
     """Handle one conversation turn with OpenAI tool calling loop.
     
@@ -415,35 +458,60 @@ async def _handle_openai_turn(
     turn_count = 0
     
     try:
-        # Initial LLM call
-        with console.status("[bold blue]🤔 Thinking..."):
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=openai_tools if openai_tools else None,
-                tool_choice="auto" if openai_tools else None
-            )
+        with tracer.span(
+            "llm.openai.turn",
+            inputs={"query": query, "model": model, "tool_count": len(openai_tools)},
+            metadata={"provider": "openai", "session_id": session.session_id},
+            run_type="chain",
+        ) as turn_span:
+            # Initial LLM call
+            with console.status("[bold blue]🤔 Thinking..."):
+                with tracer.span(
+                    "llm.openai.create",
+                    inputs={"message_count": len(messages)},
+                    metadata={"phase": "initial"},
+                    run_type="llm",
+                ):
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        tools=openai_tools if openai_tools else None,
+                        tool_choice="auto" if openai_tools else None
+                    )
         
-        message = response.choices[0].message
+            message = response.choices[0].message
         
         # Tool calling loop
-        while message.tool_calls and turn_count < max_turns:
-            turn_count += 1
+            while message.tool_calls and turn_count < max_turns:
+                turn_count += 1
             
             # Add assistant message to messages
-            messages.append(message)
+                messages.append(message)
             
             # Execute each tool call
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_input = json.loads(tool_call.function.arguments)
+                for tool_call in message.tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_input = json.loads(tool_call.function.arguments)
                 
                 if verbose:
                     params_str = _format_params(tool_input)
                     console.print(f"[dim]🔧 Calling: {tool_name}({params_str})[/dim]")
                 
-                # Execute tool
-                result = await executor.execute_tool(tool_name, tool_input)
+                    # Execute tool
+                    with tracer.span(
+                        "llm.tool.execute",
+                        inputs={"tool_name": tool_name, "tool_input": tool_input},
+                        metadata={"provider": "openai"},
+                        run_type="tool",
+                    ) as tool_span:
+                        result = await executor.execute_tool(tool_name, tool_input)
+                        tool_span.set_outputs(
+                            {
+                                "success": result.success,
+                                "error": result.error,
+                                "execution_time_seconds": result.execution_time_seconds,
+                            }
+                        )
                 
                 # Update metrics
                 session.update_tool_metrics(
@@ -459,38 +527,52 @@ async def _handle_openai_turn(
                 elif verbose:
                     console.print(f"[dim]✓ Completed in {result.execution_time_seconds:.2f}s[/dim]")
                 
-                # Add tool result to messages
-                messages.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": result.output if result.success else f"Error: {result.error}\n\nSuggestion: {result.suggestion or 'N/A'}"
-                })
+                    # Add tool result to messages
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": result.output if result.success else f"Error: {result.error}\n\nSuggestion: {result.suggestion or 'N/A'}"
+                    })
             
             # Continue conversation
-            with console.status("[bold blue]🤔 Analyzing results..."):
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    tools=openai_tools if openai_tools else None,
-                    tool_choice="auto" if openai_tools else None
-                )
+                with console.status("[bold blue]🤔 Analyzing results..."):
+                    with tracer.span(
+                        "llm.openai.create",
+                        inputs={"message_count": len(messages)},
+                        metadata={"phase": "followup"},
+                        run_type="llm",
+                    ):
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=messages,
+                            tools=openai_tools if openai_tools else None,
+                            tool_choice="auto" if openai_tools else None
+                        )
             
-            message = response.choices[0].message
+                message = response.choices[0].message
         
-        # Extract final response
-        assistant_message = message.content or "No response generated"
+            # Extract final response
+            assistant_message = message.content or "No response generated"
         
-        # Display response
-        console.print(f"\n[green]Assistant:[/green]")
-        console.print(Panel(assistant_message, border_style="green", padding=(1, 2)))
+            # Display response
+            console.print(f"\n[green]Assistant:[/green]")
+            console.print(Panel(assistant_message, border_style="green", padding=(1, 2)))
         
-        # Add final response to session
-        session.add_turn("assistant", assistant_message)
+            # Add final response to session
+            session.add_turn("assistant", assistant_message)
         
-        # Show turn limit warning if reached
-        if turn_count >= max_turns:
-            console.print(f"\n[yellow]⚠️  Reached maximum turn limit ({max_turns})[/yellow]")
+            # Show turn limit warning if reached
+            if turn_count >= max_turns:
+                console.print(f"\n[yellow]⚠️  Reached maximum turn limit ({max_turns})[/yellow]")
+
+            turn_span.set_outputs(
+                {
+                    "turn_count": turn_count,
+                    "assistant_message_length": len(assistant_message),
+                    "tool_message_count": len([m for m in messages if isinstance(m, dict) and m.get("role") == "tool"]),
+                }
+            )
     
     except Exception as e:
         logger.exception("Error in OpenAI conversation")

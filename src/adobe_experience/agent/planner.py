@@ -121,6 +121,7 @@ class PlannerEngine:
         
         if not self.client:
             logger.warning("No AI client available for optimization")
+            plan.status = PlanStatus.READY
             return plan
         
         # Get optimization suggestions from AI
@@ -689,6 +690,10 @@ Return the plan as a JSON object with this structure:
             # Fallback: treat as independent entities
             analysis = None
         
+        inferred_relationships = self._infer_relationship_candidates(
+            [e.entity_name for e in scan_result.entities]
+        )
+
         # Step 3: Calculate ingestion order based on relationships
         if analysis and analysis.relationships:
             entity_order = self._calculate_ingestion_order(
@@ -696,9 +701,13 @@ Return the plan as a JSON object with this structure:
                 analysis.relationships,
                 analysis.xdm_class_recommendations
             )
+            relationships_for_dependencies = analysis.relationships
         else:
-            # No relationships, use simple order (Profile first, then Events)
-            entity_order = [e.entity_name for e in scan_result.entities]
+            # No AI analysis available: use deterministic heuristic ordering.
+            entity_order = self._fallback_entity_order(
+                [e.entity_name for e in scan_result.entities]
+            )
+            relationships_for_dependencies = inferred_relationships
         
         logger.info(f"Ingestion order: {' → '.join(entity_order)}")
         
@@ -740,11 +749,11 @@ Return the plan as a JSON object with this structure:
             step_counter += len(entity_steps)
         
         # Step 5: Add cross-entity dependencies
-        if analysis and analysis.relationships:
+        if relationships_for_dependencies:
             self._add_cross_entity_dependencies(
                 all_steps,
                 entity_step_map,
-                analysis.relationships
+                relationships_for_dependencies
             )
         
         # Step 6: Add final validation steps
@@ -782,7 +791,7 @@ Return the plan as a JSON object with this structure:
             "entity_count": len(scan_result.entities),
             "total_records": scan_result.total_records,
             "ingestion_order": entity_order,
-            "has_relationships": bool(analysis and analysis.relationships)
+            "has_relationships": bool(relationships_for_dependencies)
         }
         
         # Calculate metrics
@@ -1104,12 +1113,23 @@ Return the plan as a JSON object with this structure:
         """
         # For each relationship, ensure dependent entity waits for parent entity's schema
         for rel in relationships:
-            if rel.relationship_type.value in ["N:1", "N:M"]:
+            rel_type = None
+            source_entity = None
+            target_entity = None
+
+            if isinstance(rel, dict):
+                rel_type = rel.get("relationship_type")
+                source_entity = rel.get("source_entity")
+                target_entity = rel.get("target_entity")
+            else:
+                relationship_type = getattr(rel, "relationship_type", None)
+                rel_type = getattr(relationship_type, "value", relationship_type)
+                source_entity = getattr(rel, "source_entity", None)
+                target_entity = getattr(rel, "target_entity", None)
+
+            if rel_type in ["N:1", "N:M"]:
                 # Source entity depends on target entity
                 # e.g., orders depends on customers
-                source_entity = rel.source_entity
-                target_entity = rel.target_entity
-                
                 if source_entity not in entity_step_map or target_entity not in entity_step_map:
                     continue
                 
@@ -1132,3 +1152,48 @@ Return the plan as a JSON object with this structure:
                             step.dependencies.append(target_schema_step)
                             logger.info(f"Added dependency: {source_entity} schema waits for {target_entity} schema")
                         break
+
+    def _fallback_entity_order(self, entities: List[str]) -> List[str]:
+        """Return deterministic ingestion order when AI analysis is unavailable."""
+        profiles: List[str] = []
+        lookups: List[str] = []
+        events: List[str] = []
+        others: List[str] = []
+
+        for entity in entities:
+            lowered = entity.lower()
+            if any(token in lowered for token in ["customer", "profile", "account", "user"]):
+                profiles.append(entity)
+            elif any(token in lowered for token in ["product", "catalog", "category", "sku"]):
+                lookups.append(entity)
+            elif any(token in lowered for token in ["order", "event", "transaction", "click", "purchase"]):
+                events.append(entity)
+            else:
+                others.append(entity)
+
+        return sorted(profiles) + sorted(lookups) + sorted(others) + sorted(events)
+
+    def _infer_relationship_candidates(self, entities: List[str]) -> List[Dict[str, str]]:
+        """Infer minimal relationship candidates for dependency-safe ordering."""
+        names = {name.lower(): name for name in entities}
+        inferred: List[Dict[str, str]] = []
+
+        if "orders" in names and "customers" in names:
+            inferred.append(
+                {
+                    "source_entity": names["orders"],
+                    "target_entity": names["customers"],
+                    "relationship_type": "N:1",
+                }
+            )
+
+        if "orders" in names and "products" in names:
+            inferred.append(
+                {
+                    "source_entity": names["orders"],
+                    "target_entity": names["products"],
+                    "relationship_type": "N:M",
+                }
+            )
+
+        return inferred
