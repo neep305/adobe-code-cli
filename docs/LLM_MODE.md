@@ -1,5 +1,7 @@
 # LLM Mode - AI-Powered Interactive Assistant
 
+Back to docs index: [README.md](README.md)
+
 ## Overview
 
 LLM Mode enables natural language interaction with Adobe Experience Platform through Claude AI. Instead of memorizing CLI commands, you can simply ask questions in plain English (or Korean).
