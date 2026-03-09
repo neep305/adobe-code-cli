@@ -91,6 +91,17 @@ def create_schema(
         "-f",
         help="Path to sample JSON data file",
     ),
+    from_erd: Optional[Path] = typer.Option(
+        None,
+        "--from-erd",
+        help="Path to Mermaid ERD diagram file",
+    ),
+    entity: Optional[str] = typer.Option(
+        None,
+        "--entity",
+        "-e",
+        help="Entity name to extract from ERD (required with --from-erd)",
+    ),
     description: Optional[str] = typer.Option(
         None,
         "--description",
@@ -125,11 +136,17 @@ def create_schema(
         help="Save schema to file",
     ),
 ) -> None:
-    """Create XDM schema from sample data or interactively with AI.
+    """Create XDM schema from sample data, ERD diagram, or interactively with AI.
 
     Examples:
+        # From sample JSON data
         aep schema create --name "Customer Events" --from-sample data.json
         aep schema create -n "Customer Profile" -f customers.json --use-ai --upload
+        
+        # From Mermaid ERD diagram
+        aep schema create --from-erd test.md --entity PRODUCTS --name "Product Catalog" --upload
+        
+        # Interactive mode
         aep schema create -n "Loyalty Program" --interactive
     """
     # Interactive mode - no file required
@@ -137,12 +154,23 @@ def create_schema(
         _create_schema_interactive(name, description, upload, class_id, output)
         return
     
-    if not from_sample:
-        console.print("[red]Error: --from-sample is required (or use --interactive)[/red]")
+    # Validate inputs
+    if not from_sample and not from_erd:
+        console.print("[red]Error: --from-sample or --from-erd is required (or use --interactive)[/red]")
         raise typer.Exit(1)
-
-    if not from_sample.exists():
-        console.print(f"[red]Error: File not found: {from_sample}[/red]")
+    
+    if from_erd and not entity:
+        console.print("[red]Error: --entity is required when using --from-erd[/red]")
+        raise typer.Exit(1)
+    
+    if from_sample and from_erd:
+        console.print("[red]Error: Cannot use both --from-sample and --from-erd[/red]")
+        raise typer.Exit(1)
+    
+    # Validate file exists
+    input_file = from_sample or from_erd
+    if not input_file.exists():
+        console.print(f"[red]Error: File not found: {input_file}[/red]")
         raise typer.Exit(1)
 
     try:
@@ -151,56 +179,150 @@ def create_schema(
         from adobe_experience.aep.client import AEPClient
         from adobe_experience.core.config import get_config
         from adobe_experience.schema.xdm import XDMSchemaAnalyzer, XDMSchemaRegistry
+        from adobe_experience.schema.erd_parser import MermaidERDParser
 
-        # Load sample data
-        with console.status(f"[bold blue]Loading sample data from {from_sample}..."):
-            with open(from_sample, "r", encoding="utf-8") as f:
-                sample_data = json.load(f)
+        config = get_config()
+        
+        # Initialize field_group (only used in from_erd mode)
+        field_group = None
 
-            if not isinstance(sample_data, list):
-                sample_data = [sample_data]
-
-        console.print(f"[green]✓[/green] Loaded {len(sample_data)} sample records")
-
-        # Generate schema
-        if use_ai:
-            console.print("\n[bold cyan]Using AI to generate optimized schema...[/bold cyan]")
-
-            engine = AIInferenceEngine()
-            request = SchemaGenerationRequest(
-                sample_data=sample_data,
-                schema_name=name,
-                schema_description=description,
+        # ====== FROM ERD MODE ======
+        if from_erd:
+            console.print(f"\n[bold cyan]📊 Parsing Mermaid ERD from {from_erd}...[/bold cyan]")
+            
+            with console.status("[bold blue]Parsing ERD diagram..."):
+                # Parse ERD file
+                parser = MermaidERDParser()
+                erd_content = from_erd.read_text(encoding="utf-8")
+                entities = parser.parse_erd(erd_content)
+            
+            console.print(f"[green]✓[/green] Found {len(entities)} entities in ERD")
+            
+            # Find target entity
+            target_entity = next(
+                (e for e in entities if e.name.upper() == entity.upper()),
+                None
             )
-
-            response = asyncio.run(engine.generate_schema_with_ai(request))
-            schema = response.xdm_schema
-
-            # Display AI insights
-            console.print("\n[bold]AI Analysis:[/bold]")
-            console.print(Panel(response.reasoning, title="Reasoning", border_style="cyan"))
-
-            if response.identity_recommendations:
-                console.print("\n[bold]Identity Recommendations:[/bold]")
-                for field, reason in response.identity_recommendations.items():
-                    console.print(f"  • {field}: {reason}")
-
-            if response.data_quality_issues:
-                console.print("\n[yellow]Data Quality Issues:[/yellow]")
-                for issue in response.data_quality_issues:
-                    console.print(f"  • {issue}")
-
-        else:
-            # Load config for tenant_id even without AI
-            config = get_config()
-            with console.status("[bold blue]Analyzing schema structure..."):
-                schema = XDMSchemaAnalyzer.from_sample_data(
-                    sample_data,
-                    name,
-                    description,
+            
+            if not target_entity:
+                available = ", ".join([e.name.upper() for e in entities])
+                console.print(f"[red]Error: Entity '{entity}' not found in ERD[/red]")
+                console.print(f"[yellow]Available entities: {available}[/yellow]")
+                raise typer.Exit(1)
+            
+            console.print(f"[green]✓[/green] Selected entity: {target_entity.name.upper()}")
+            console.print(f"  Fields: {len(target_entity.fields)}")
+            console.print(f"  Relationships: {len(target_entity.relationships)}")
+            
+            # Display field list
+            console.print("\n[bold]Fields:[/bold]")
+            for field in target_entity.fields:
+                fk_marker = " [dim](FK)[/dim]" if field.name.endswith("_id") else ""
+                pk_marker = " [cyan](PK)[/cyan]" if field.name == target_entity.primary_key else ""
+                console.print(f"  • {field.name}: {field.xdm_type.value}{fk_marker}{pk_marker}")
+            
+            # Infer XDM class from entity name
+            entity_name_lower = target_entity.name.lower()
+            if any(keyword in entity_name_lower for keyword in ["event", "activity", "transaction", "order"]):
+                xdm_class = class_id or "https://ns.adobe.com/xdm/context/experienceevent"
+                class_display = "ExperienceEvent"
+            elif any(keyword in entity_name_lower for keyword in ["product", "item", "catalog"]):
+                # Product catalog data uses Profile class (each product as a profile record)
+                xdm_class = class_id or "https://ns.adobe.com/xdm/context/profile"
+                class_display = "Profile (Product Catalog)"
+                console.print("[dim]ℹ️  Product entities use Profile class for reference/lookup data[/dim]")
+            else:
+                xdm_class = class_id or "https://ns.adobe.com/xdm/context/profile"
+                class_display = "Profile"
+            
+            console.print(f"\n[bold]Inferred XDM Class:[/bold] {class_display}")
+            
+            # Generate field group first (AEP requirement)
+            with console.status("[bold blue]Generating XDM field group..."):
+                field_group = parser.entity_to_field_group(
+                    target_entity,
                     tenant_id=config.aep_tenant_id,
-                    class_id=class_id,
+                    xdm_class=xdm_class,
                 )
+            
+            console.print(f"[green]✓[/green] Field group '{field_group.title}' generated")
+            
+            # Debug: Save field group JSON
+            fg_json = field_group.model_dump(by_alias=True, exclude_none=True)
+            if output:
+                fg_output = output.parent / f"{output.stem}_fieldgroup.json"
+                fg_output.write_text(json.dumps(fg_json, indent=2), encoding="utf-8")
+                console.print(f"[dim]  Field group JSON saved to {fg_output}[/dim]")
+            
+            # Store field group ID for schema reference
+            field_group_id = field_group.field_group_id
+            
+            # Convert to XDM schema (using field group reference)
+            with console.status("[bold blue]Generating XDM schema..."):
+                schema = parser.entity_to_xdm_schema_with_fieldgroup(
+                    target_entity,
+                    tenant_id=config.aep_tenant_id,
+                    field_group_id=field_group_id,
+                    xdm_class=xdm_class,
+                )
+            
+            # Override name and description if provided
+            if name:
+                schema.title = name
+                # Also update field group title to match
+                field_group.title = f"{name} - Custom Fields"
+            if description:
+                schema.description = description
+
+        # ====== FROM SAMPLE MODE ======
+        elif from_sample:
+            # Load sample data
+            with console.status(f"[bold blue]Loading sample data from {from_sample}..."):
+                with open(from_sample, "r", encoding="utf-8") as f:
+                    sample_data = json.load(f)
+
+                if not isinstance(sample_data, list):
+                    sample_data = [sample_data]
+
+            console.print(f"[green]✓[/green] Loaded {len(sample_data)} sample records")
+
+            # Generate schema
+            if use_ai:
+                console.print("\n[bold cyan]Using AI to generate optimized schema...[/bold cyan]")
+
+                engine = AIInferenceEngine()
+                request = SchemaGenerationRequest(
+                    sample_data=sample_data,
+                    schema_name=name,
+                    schema_description=description,
+                )
+
+                response = asyncio.run(engine.generate_schema_with_ai(request))
+                schema = response.xdm_schema
+
+                # Display AI insights
+                console.print("\n[bold]AI Analysis:[/bold]")
+                console.print(Panel(response.reasoning, title="Reasoning", border_style="cyan"))
+
+                if response.identity_recommendations:
+                    console.print("\n[bold]Identity Recommendations:[/bold]")
+                    for field, reason in response.identity_recommendations.items():
+                        console.print(f"  • {field}: {reason}")
+
+                if response.data_quality_issues:
+                    console.print("\n[yellow]Data Quality Issues:[/yellow]")
+                    for issue in response.data_quality_issues:
+                        console.print(f"  • {issue}")
+
+            else:
+                with console.status("[bold blue]Analyzing schema structure..."):
+                    schema = XDMSchemaAnalyzer.from_sample_data(
+                        sample_data,
+                        name,
+                        description,
+                        tenant_id=config.aep_tenant_id,
+                        class_id=class_id,
+                    )
 
         console.print(f"\n[green]✓[/green] Schema '{name}' generated successfully")
 
@@ -239,13 +361,26 @@ def create_schema(
             
             if state and state.mode == TutorialMode.DRY_RUN:
                 console.print("\n[bold yellow]🎓 Dry-Run Mode: Simulating schema upload[/bold yellow]")
+                
+                # Get XDM class safely
+                xdm_class = schema_json.get('meta:class', 'N/A')
+                if not xdm_class or xdm_class == 'N/A':
+                    all_of = schema_json.get('allOf', [])
+                    if all_of and len(all_of) > 0:
+                        xdm_class = all_of[0].get('$ref', 'N/A')
+                
+                # Field group info if available
+                fg_info = ""
+                if field_group:
+                    fg_info = f"\n  • Field Group: {field_group.title}"
+                
                 console.print(Panel(
                     f"[bold]Simulated Upload[/bold]\n\n"
-                    f"Would upload schema to AEP:\n"
+                    f"Would upload to AEP:{fg_info}\n"
                     f"  • Schema Name: {name}\n"
-                    f"  • Fields: {len(schema_json.get('properties', {}))} properties\n"
-                    f"  • Class: {schema_json.get('allOf', [{}])[0].get('$ref', 'N/A')}\n\n"
-                    f"[dim]In online mode, this would create a real schema in your AEP environment.[/dim]",
+                    f"  • Fields: {len(schema_json.get('properties', {}).get(f'_{config.aep_tenant_id}', {}).get('properties', {}))} custom fields\n"
+                    f"  • Class: {xdm_class}\n\n"
+                    f"[dim]In online mode, this would create real resources in your AEP environment.[/dim]",
                     border_style="yellow",
                 ))
                 console.print(f"[green]✓[/green] Dry-run completed successfully!")
@@ -256,12 +391,39 @@ def create_schema(
             console.print("\n[bold cyan]Uploading schema to AEP...[/bold cyan]")
 
             try:
-                async def upload_schema():
-                    async with AEPClient(config) as client:
-                        registry = XDMSchemaRegistry(client)
-                        return await registry.create_schema(schema)
+                # If from ERD, upload field group first
+                if from_erd:
+                    # Convert field group to dict
+                    field_group_dict = field_group.model_dump(by_alias=True, exclude_none=True)
+                    
+                    async def upload_field_group(fg_dict, cfg):
+                        async with AEPClient(cfg) as client:
+                            registry = XDMSchemaRegistry(client)
+                            return await registry.create_field_group(fg_dict)
+                    
+                    console.print("[bold cyan]→ Step 1/2: Creating field group...[/bold cyan]")
+                    uploaded_field_group = asyncio.run(upload_field_group(field_group_dict, config))
+                    console.print(f"[green]✓[/green] Field group created successfully!")
+                    console.print(f"  Field Group ID: [cyan]{uploaded_field_group.get('$id', 'N/A')}[/cyan]")
+                    
+                    console.print("\n[bold cyan]→ Step 2/2: Creating schema...[/bold cyan]")
                 
-                uploaded_schema = asyncio.run(upload_schema())
+                # Convert schema to dict
+                schema_dict = schema.model_dump(by_alias=True, exclude_none=True)
+                
+                async def upload_schema(sch_dict, cfg):
+                    async with AEPClient(cfg) as client:
+                        registry = XDMSchemaRegistry(client)
+                        # schema is already a dict, but create_schema expects XDMSchema
+                        # So we need to use the dict directly in client.post
+                        path = "/data/foundation/schemaregistry/tenant/schemas"
+                        return await client.post(
+                            path,
+                            json=sch_dict,
+                            headers={"Accept": "application/vnd.adobe.xed-full+json; version=1"},
+                        )
+                
+                uploaded_schema = asyncio.run(upload_schema(schema_dict, config))
 
                 console.print(f"[green]✓[/green] Schema uploaded successfully!")
                 console.print(f"  Schema ID: [cyan]{uploaded_schema.get('$id', 'N/A')}[/cyan]")
@@ -279,7 +441,10 @@ def create_schema(
                     pass
 
             except Exception as e:
+                import traceback
                 console.print(f"\n[red]✗ Upload failed: {e}[/red]")
+                console.print("\n[dim]Traceback:[/dim]")
+                traceback.print_exc()
                 raise typer.Exit(1)
 
     except Exception as e:

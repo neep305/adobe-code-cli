@@ -89,7 +89,9 @@ AEP_TECHNICAL_ACCOUNT_ID=your_tech_account_id@techacct.adobe.com
 AEP_SANDBOX_NAME=jason-sandbox
 AEP_TENANT_ID=your_tenant_id
 
-# AI Provider (choose one or both)
+# AI Provider Configuration
+AI_PROVIDER=auto              # auto, openai, or anthropic
+AI_MODEL=gpt-4o               # Default model
 ANTHROPIC_API_KEY=your_anthropic_key
 OPENAI_API_KEY=your_openai_key
 ```
@@ -99,16 +101,24 @@ OPENAI_API_KEY=your_openai_key
 Store AI keys separately from `.env` for better security:
 
 ```bash
-# Set AI provider keys
+# Set AI provider keys (hidden input mode)
 aep ai set-key openai
-# Enter key when prompted (paste with Ctrl+V works!)
+# Enter key when prompted (paste with Ctrl+V/Right-click works!)
 
 aep ai set-key anthropic
 
+# Verify configuration
+aep ai status
+
+# Test API connectivity
+aep ai test
+
+# Set default provider (optional)
+aep ai set-default openai
+
 # List stored keys
 aep ai list-keys
-
-# S📖 Command Reference
+```📖 Command Reference
 
 ### Global Commands
 
@@ -145,10 +155,24 @@ aep dataset complete-batch  # Complete batch
 ### AI Provider Management
 
 ```bash
-aep ai set-key <provider>      # Set API key (openai/anthropic)
+# Configuration and Status
+aep ai status                   # Show current AI provider configuration
+aep ai status --verbose         # Show detailed configuration with file paths
+aep ai test                     # Test API connectivity for configured providers
+aep ai test <provider>          # Test specific provider (openai/anthropic)
+
+# Key Management
+aep ai set-key <provider>       # Set API key with hidden input (openai/anthropic)
 aep ai list-keys                # List stored API keys
 aep ai remove-key <provider>    # Remove API key
 aep ai set-default <provider>   # Set default provider
+
+# LLM Assistant (AI-powered)
+aep llm chat                    # Interactive mode with default provider
+aep llm chat --provider openai  # Use OpenAI (ChatGPT)
+aep llm chat --provider anthropic  # Use Anthropic (Claude)
+aep llm chat "query"            # One-shot query with default provider
+aep llm chat --model gpt-4o "query"  # Use specific model
 ```
 
 ### Authentication
@@ -156,6 +180,69 @@ aep ai set-default <provider>   # Set default provider
 ```bash
 aep auth test           # Test AEP credentials
 ```
+
+### Web UI Server Management
+
+Manage the full-stack web UI (FastAPI + Next.js + PostgreSQL + Redis) directly from the CLI.
+
+**Start web services**
+
+```bash
+# Docker mode (recommended - includes all services)
+aep web start                       # Start full stack with docker-compose
+aep web start --mode docker         # Same as above
+
+# Local development mode (requires Node.js/npm)
+aep web start --mode dev            # Start backend + frontend locally
+
+# Individual services
+aep web start --mode backend        # Start only backend (port 8000)
+aep web start --mode frontend       # Start only frontend (port 3000)
+
+# Custom ports
+aep web start --backend-port 8080 --frontend-port 3001
+
+# Run in background without opening browser
+aep web start --detach --no-browser
+```
+
+**Check service status**
+
+```bash
+aep web status                      # Show running services with ports and PIDs
+```
+
+**View logs**
+
+```bash
+aep web logs backend                # View backend logs
+aep web logs frontend               # View frontend logs
+aep web logs backend --follow       # Follow logs in real-time
+aep web logs frontend --tail 50     # Show last 50 lines
+```
+
+**Stop services**
+
+```bash
+aep web stop                        # Stop all services
+aep web stop --mode docker          # Stop Docker services
+aep web stop --mode backend         # Stop only backend
+aep web stop --mode frontend        # Stop only frontend
+```
+
+**Open in browser**
+
+```bash
+aep web open                        # Open frontend (http://localhost:3000)
+aep web open app                    # Same as above
+aep web open api-docs               # Open API docs (http://localhost:8000/api/docs)
+```
+
+**Deployment modes:**
+- **docker** (default): Best for production-like environment, includes PostgreSQL + Redis
+- **dev**: Local development with hot reload
+- **backend**: API server only (good for testing API endpoints)
+- **frontend**: Frontend only (requires backend running separately)
 
 ### Legacy Commands (Deprecated)
 
@@ -265,10 +352,24 @@ AEP_SANDBOX_NAME=jason-sandbox  # or "prod"
 AEP_TENANT_ID=<your_tenant_id>
 AEP_CONTAINER_ID=tenant
 
-# AI Provider (Optional - recommended to use aep ai set-key instead)
+# AI Provider Configuration (Optional)
+AI_PROVIDER=auto              # auto (default), openai, or anthropic
+AI_MODEL=gpt-4o               # Default model for LLM assistant
+
+# AI Provider API Keys (Optional - recommended to use aep ai set-key instead)
 ANTHROPIC_API_KEY=<your_key>
 OPENAI_API_KEY=<your_key>
 ```
+
+**Provider Selection Priority:**
+1. CLI `--provider` flag (highest)
+2. `AI_PROVIDER` environment variable / config
+3. Auto-detection (uses first available API key)
+
+**Model Selection Priority:**
+1. CLI `--model` flag (highest)
+2. `AI_MODEL` environment variable / config
+3. Provider-specific default
 
 ### AI Key Storage
 
@@ -276,6 +377,7 @@ Keys are stored separately in `~/.adobe/ai-credentials.json` with 600 permission
 
 ```json
 {
+  "default_provider": "openai",
   "openai": {
     "api_key": "sk-...",
     "model": "gpt-4o"
@@ -292,11 +394,43 @@ Keys are stored separately in `~/.adobe/ai-credentials.json` with 600 permission
 
 ## 💡 Examples
 
+### AI-Powered LLM Assistant
+
+Use natural language to query and analyze your AEP environment:
+
+```bash
+# Interactive mode with default provider
+aep llm chat
+
+# Use specific provider (OpenAI or Anthropic)
+aep llm chat --provider openai
+aep llm chat --provider anthropic
+
+# One-shot queries
+aep llm chat "list all schemas"
+aep llm chat "show failing dataflows from last 7 days"
+aep llm chat "what datasets are enabled for profile?"
+aep llm chat --provider anthropic "analyze dataflow health"
+
+# Use specific model
+aep llm chat --model gpt-4o "list schemas"
+aep llm chat --model claude-3-5-sonnet-20241022 "show datasets"
+
+# Check provider status
+aep ai status
+
+# Test connectivity
+aep ai test
+aep ai test openai
+aep ai test anthropic
+```
+
 ### End-to-End: Generate and Upload Schema
 
 ```bash
 # 1. Set up AI provider
 aep ai set-key openai
+aep ai status  # Verify configuration
 
 # 2. Generate schema from sample data with AI
 aep schema create \
@@ -446,6 +580,118 @@ src/adobe_aep/
 ├── processors/     # Data transformation
 └── cli/            # Typer CLI commands
 ```
+
+## 🏗️ Technology Stack
+
+### Core Framework & CLI
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Python** | 3.10+ | Core language | [python.org](https://www.python.org/) |
+| **Typer** | 0.9+ | CLI framework with type hints | [typer.tiangolo.com](https://typer.tiangolo.com/) |
+| **Pydantic** | 2.0+ | Data validation and settings management | [docs.pydantic.dev](https://docs.pydantic.dev/) |
+| **Rich** | 13.0+ | Terminal UI (tables, progress bars, colors) | [rich.readthedocs.io](https://rich.readthedocs.io/) |
+
+### HTTP & API Integration
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **httpx** | 0.24+ | Async HTTP client for API calls | [www.python-httpx.org](https://www.python-httpx.org/) |
+| **Adobe IMS API** | - | OAuth Server-to-Server authentication | [Adobe Auth Guide](https://experienceleague.adobe.com/en/docs/platform-learn/tutorials/platform-api-authentication) |
+| **Adobe Platform API** | - | AEP REST API integration | [Adobe API Reference](https://developer.adobe.com/experience-platform-apis/) |
+
+### AI & LLM Integration
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Anthropic Claude** | - | AI inference for schema analysis | [docs.anthropic.com](https://docs.anthropic.com/) |
+| **OpenAI GPT** | - | AI inference alternative | [platform.openai.com](https://platform.openai.com/) |
+| **Tool Calling** | - | LLM function calling for structured output | - |
+
+### Data Processing
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Pandas** | 2.0+ | Data frame processing (optional) | [pandas.pydata.org](https://pandas.pydata.org/) |
+| **PyArrow** | 12.0+ | Parquet file handling (optional) | [arrow.apache.org](https://arrow.apache.org/docs/python/) |
+| **Faker** | 18.0+ | Test data generation | [faker.readthedocs.io](https://faker.readthedocs.io/) |
+
+### Schema & ERD
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Mermaid** | - | ERD diagram parsing | [mermaid.js.org](https://mermaid.js.org/) |
+| **XDM** | - | Adobe Experience Data Model | [XDM Schema Guide](https://experienceleague.adobe.com/en/docs/experience-platform/xdm/home) |
+
+### Testing
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **pytest** | 7.4+ | Test framework | [docs.pytest.org](https://docs.pytest.org/) |
+| **pytest-asyncio** | 0.21+ | Async test support | [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) |
+| **pytest-mock** | 3.11+ | Mocking utilities | [pytest-mock](https://pytest-mock.readthedocs.io/) |
+| **pytest-cov** | 4.1+ | Code coverage reporting | [pytest-cov](https://pytest-cov.readthedocs.io/) |
+
+### Code Quality
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **Black** | 23.0+ | Code formatter | [black.readthedocs.io](https://black.readthedocs.io/) |
+| **Ruff** | 0.0.285+ | Fast Python linter | [docs.astral.sh/ruff](https://docs.astral.sh/ruff/) |
+| **mypy** | 1.4+ | Static type checker | [mypy-lang.org](https://mypy-lang.org/) |
+
+### Web UI (Optional)
+
+| Technology | Version | Purpose | Documentation |
+|------------|---------|---------|---------------|
+| **FastAPI** | 0.100+ | Backend REST API | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) |
+| **Next.js** | 14.0+ | React frontend framework | [nextjs.org](https://nextjs.org/) |
+| **PostgreSQL** | 15.0+ | Relational database | [postgresql.org](https://www.postgresql.org/) |
+| **Redis** | 7.0+ | Caching layer | [redis.io](https://redis.io/) |
+| **shadcn/ui** | - | UI component library | [ui.shadcn.com](https://ui.shadcn.com/) |
+| **Tailwind CSS** | 3.0+ | CSS framework | [tailwindcss.com](https://tailwindcss.com/) |
+
+### Development Tools
+
+| Technology | Purpose |
+|------------|---------|
+| **Git** | Version control |
+| **Docker** | Container runtime (for web UI) |
+| **Docker Compose** | Multi-container orchestration |
+| **pip** | Python package manager |
+| **venv** | Python virtual environments |
+
+### Key Architecture Decisions
+
+**1. Typer for CLI Framework**
+- Type-safe command definitions with Python type hints
+- Automatic help generation and validation
+- Sub-command architecture for multi-product support
+- Rich integration for beautiful terminal output
+
+**2. Pydantic for Data Validation**
+- XDM schema modeling with strict type checking
+- Configuration management with settings validation
+- API response parsing and validation
+- Model serialization for API requests
+
+**3. Async HTTP with httpx**
+- Non-blocking API calls for better performance
+- Connection pooling and retry logic
+- Streaming support for large file uploads
+- Type-safe request/response handling
+
+**4. Multi-Provider AI (OpenAI + Anthropic)**
+- Provider abstraction layer for flexibility
+- Tool calling for structured schema generation
+- Automatic fallback and provider selection
+- Secure credential storage
+
+**5. Modular Architecture**
+- Separation of concerns (auth, API clients, CLI)
+- Easy extensibility for new Adobe products
+- Shared core utilities across modules
+- Backward compatibility layer for migrations
 
 ## Resources
 

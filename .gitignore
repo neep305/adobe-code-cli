@@ -58,3 +58,23 @@ dmypy.json
 .adobe/
 
 oauth_server_to_server.postman_environment.json
+
+# Temporary test files
+/test_*.py
+/test_*.ps1
+/test_*.json
+/*_plan.json
+/*_output.json
+/upload_error.txt
+
+# Generated schema files (for testing)
+/orders_schema*.json
+/products_schema*.json
+/events_schema*.json
+/customers_schema*.json
+
+# Test data (large datasets)
+/test-data/healthcare/
+/test-data/*/
+!test-data/ecommerce/*.json
+!test-data/README.md

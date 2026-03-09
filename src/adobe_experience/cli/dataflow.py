@@ -9,10 +9,13 @@ import typer
 from rich.console import Console
 from rich.json import JSON
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
 
 from adobe_experience.aep.client import AEPClient
+from adobe_experience.cache.dataflow_cache import DataflowCache
+from adobe_experience.cli._id_resolver import resolve_dataflow_id_or_fail
 from adobe_experience.cli.command_metadata import (
     command_metadata,
     CommandCategory,
@@ -40,6 +43,7 @@ def list_dataflows(
     limit: int = typer.Option(20, "--limit", "-l", help="Number of dataflows to display"),
     state: Optional[str] = typer.Option(None, "--state", help="Filter by state (enabled/disabled)"),
     with_sources: bool = typer.Option(False, "--with-sources", help="Include source entity information (slower)"),
+    full_id: bool = typer.Option(False, "--full-id", help="Display full UUIDs instead of truncated IDs"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """List dataflows in Adobe Experience Platform.
@@ -49,6 +53,7 @@ def list_dataflows(
         aep dataflow list --limit 50
         aep dataflow list --state enabled
         aep dataflow list --with-sources
+        aep dataflow list --full-id
         aep dataflow list --json
     """
 
@@ -76,17 +81,23 @@ def list_dataflows(
             console.print_json(data=data)
             return
 
+        # Cache ID mappings for number-based selection
+        cache = DataflowCache()
+        id_mappings = {idx: flow.id for idx, flow in enumerate(dataflows, 1)}
+        cache.save_mappings(id_mappings)
+
         # Rich table output
         table = Table(title=f"Dataflows ({len(dataflows)} found)")
+        table.add_column("#", style="dim", width=4)
         table.add_column("Name", style="cyan", no_wrap=False, max_width=40)
-        table.add_column("ID", style="dim", max_width=30)
+        table.add_column("ID", style="dim", max_width=40 if full_id else 30)
         table.add_column("State", justify="center")
         if with_sources:
             table.add_column("Source", style="green", max_width=35)
         table.add_column("Flow Spec", style="green", max_width=30)
         table.add_column("Created", style="blue")
 
-        for flow in dataflows:
+        for idx, flow in enumerate(dataflows, 1):
             # Format state with color
             state_text = (
                 f"[green]{flow.state.value}[/green]"
@@ -97,11 +108,15 @@ def list_dataflows(
             # Format creation date
             created_date = datetime.fromtimestamp(flow.created_at / 1000).strftime("%Y-%m-%d %H:%M")
 
-            # Truncate IDs for display
-            flow_id_display = flow.id[:24] + "..." if len(flow.id) > 24 else flow.id
-            spec_display = (
-                flow.flow_spec.id[:24] + "..." if len(flow.flow_spec.id) > 24 else flow.flow_spec.id
-            )
+            # Format IDs based on --full-id flag
+            if full_id:
+                flow_id_display = flow.id
+                spec_display = flow.flow_spec.id
+            else:
+                flow_id_display = flow.id[:24] + "..." if len(flow.id) > 24 else flow.id
+                spec_display = (
+                    flow.flow_spec.id[:24] + "..." if len(flow.flow_spec.id) > 24 else flow.flow_spec.id
+                )
             
             # Fetch source info if requested
             source_display = ""
@@ -119,6 +134,7 @@ def list_dataflows(
                     source_display = "Error"
 
             row = [
+                str(idx),
                 flow.name or "N/A",
                 flow_id_display,
                 state_text,
@@ -131,7 +147,10 @@ def list_dataflows(
 
         console.print(table)
         console.print(
-            f"\n[dim]Tip: Use 'aep dataflow get <ID>' for detailed information[/dim]"
+            f"\n[dim]Tip: Use 'aep dataflow get <ID or #>' for detailed information[/dim]"
+        )
+        console.print(
+            f"[dim]Tip: Use number shortcuts (e.g., 'aep dataflow failures 1') instead of full IDs[/dim]"
         )
 
     except Exception as e:
@@ -142,20 +161,28 @@ def list_dataflows(
 @command_metadata(CommandCategory.API, "Get dataflow details by ID")
 @dataflow_app.command("get")
 def get_dataflow(
-    flow_id: str = typer.Argument(..., help="Dataflow ID"),
+    flow_id: str = typer.Argument(..., help="Dataflow ID or number from list"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Get detailed information about a specific dataflow.
 
     Examples:
+        aep dataflow get 1  # Use number from list
         aep dataflow get d8a68c9e-1d5f-4b6c-8a4e-9f8c7d6e5f4a
         aep dataflow get <FLOW_ID> --json
     """
+    
+    # Resolve ID from number or UUID
+    try:
+        resolved_id = resolve_dataflow_id_or_fail(flow_id)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
 
     async def fetch_dataflow():
         async with AEPClient(get_config()) as aep_client:
             flow_client = FlowServiceClient(aep_client)
-            return await flow_client.get_dataflow(flow_id)
+            return await flow_client.get_dataflow(resolved_id)
 
     try:
         with console.status(f"[bold blue]Fetching dataflow {flow_id}..."):
@@ -266,7 +293,7 @@ def get_dataflow(
 @command_metadata(CommandCategory.API, "List dataflow runs and executions")
 @dataflow_app.command("runs")
 def list_runs(
-    flow_id: str = typer.Argument(..., help="Dataflow ID"),
+    flow_id: str = typer.Argument(..., help="Dataflow ID or number from list"),
     limit: int = typer.Option(20, "--limit", "-l", help="Number of runs to display"),
     days: Optional[int] = typer.Option(None, "--days", help="Filter runs from last N days"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
@@ -274,11 +301,19 @@ def list_runs(
     """List execution runs for a dataflow.
 
     Examples:
+        aep dataflow runs 1  # Use number from list
         aep dataflow runs d8a68c9e-1d5f-4b6c-8a4e-9f8c7d6e5f4a
         aep dataflow runs <FLOW_ID> --limit 50
         aep dataflow runs <FLOW_ID> --days 7
         aep dataflow runs <FLOW_ID> --json
     """
+    
+    # Resolve ID from number or UUID
+    try:
+        resolved_id = resolve_dataflow_id_or_fail(flow_id)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
 
     async def fetch_runs():
         async with AEPClient(get_config()) as aep_client:
@@ -286,10 +321,10 @@ def list_runs(
             if days:
                 start_date = datetime.now() - timedelta(days=days)
                 return await flow_client.list_runs_by_date_range(
-                    flow_id, start_date=start_date, limit=limit
+                    resolved_id, start_date=start_date, limit=limit
                 )
             else:
-                return await flow_client.list_runs(flow_id, limit=limit)
+                return await flow_client.list_runs(resolved_id, limit=limit)
 
     try:
         with console.status(f"[bold blue]Fetching runs for dataflow {flow_id}..."):
@@ -394,22 +429,30 @@ def list_runs(
 @command_metadata(CommandCategory.API, "View dataflow run failures")
 @dataflow_app.command("failures")
 def list_failures(
-    flow_id: str = typer.Argument(..., help="Dataflow ID"),
+    flow_id: str = typer.Argument(..., help="Dataflow ID or number from list"),
     limit: int = typer.Option(50, "--limit", "-l", help="Maximum number of runs to check"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """List only failed runs for a dataflow with error details.
 
     Examples:
+        aep dataflow failures 1  # Use number from list
         aep dataflow failures d8a68c9e-1d5f-4b6c-8a4e-9f8c7d6e5f4a
         aep dataflow failures <FLOW_ID> --limit 100
         aep dataflow failures <FLOW_ID> --json
     """
+    
+    # Resolve ID from number or UUID
+    try:
+        resolved_id = resolve_dataflow_id_or_fail(flow_id)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
 
     async def fetch_failures():
         async with AEPClient(get_config()) as aep_client:
             flow_client = FlowServiceClient(aep_client)
-            return await flow_client.list_failed_runs(flow_id, limit=limit)
+            return await flow_client.list_failed_runs(resolved_id, limit=limit)
 
     try:
         with console.status(f"[bold blue]Fetching failed runs for dataflow {flow_id}..."):
@@ -601,7 +644,7 @@ def get_connections(
 @command_metadata(CommandCategory.API, "Check dataflow health status")
 @dataflow_app.command("health")
 def analyze_health(
-    flow_id: str = typer.Argument(..., help="Dataflow ID"),
+    flow_id: str = typer.Argument(..., help="Dataflow ID or number from list"),
     days: int = typer.Option(7, "--days", "-d", help="Number of days to analyze"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
@@ -611,15 +654,23 @@ def analyze_health(
     average duration, and common errors.
 
     Examples:
+        aep dataflow health 1  # Use number from list
         aep dataflow health d8a68c9e-1d5f-4b6c-8a4e-9f8c7d6e5f4a
         aep dataflow health <FLOW_ID> --days 30
         aep dataflow health <FLOW_ID> --json
     """
+    
+    # Resolve ID from number or UUID
+    try:
+        resolved_id = resolve_dataflow_id_or_fail(flow_id)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
 
     async def fetch_health():
         async with AEPClient(get_config()) as aep_client:
             flow_client = FlowServiceClient(aep_client)
-            return await flow_client.analyze_dataflow_health(flow_id, lookback_days=days)
+            return await flow_client.analyze_dataflow_health(resolved_id, lookback_days=days)
 
     try:
         with console.status(f"[bold blue]Analyzing dataflow health (last {days} days)..."):
@@ -708,3 +759,252 @@ def analyze_health(
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
+
+
+@command_metadata(CommandCategory.API, "Ask questions about dataflows in natural language")
+def _handle_single_question(
+    question: str,
+    days: int,
+    json_output: bool,
+    detected_lang: Optional[str] = None
+) -> None:
+    """Handle a single dataflow question (one-shot mode).
+    
+    Args:
+        question: The question to ask
+        days: Number of days to analyze
+        json_output: Whether to output as JSON
+        detected_lang: Pre-detected language (or None to auto-detect)
+    """
+    async def fetch_and_analyze():
+        from adobe_experience.agent.inference import AIInferenceEngine
+        from adobe_experience.i18n import t
+        
+        # Detect language from question (if not already detected)
+        lang = detected_lang or ("ko" if any('\uac00' <= c <= '\ud7a3' for c in question) else "en")
+        
+        # Fetch all dataflows
+        async with AEPClient(get_config()) as aep_client:
+            flow_client = FlowServiceClient(aep_client)
+            dataflows = await flow_client.list_dataflows(limit=100)
+            
+            if not dataflows:
+                return None, lang
+            
+            # Initialize AI engine
+            engine = AIInferenceEngine(get_config())
+            
+            # Ask AI to analyze
+            result = await engine.answer_dataflow_question(
+                question=question,
+                dataflows=dataflows,
+                language=lang,
+                lookback_days=days
+            )
+            
+            return result, lang
+    
+    try:
+        # Auto-detect language if not provided
+        lang = detected_lang or ("ko" if any('\uac00' <= c <= '\ud7a3' for c in question) else "en")
+        
+        # Show thinking message
+        thinking_msg = "AI가 dataflow 상태를 분석하고 있습니다..." if lang == "ko" else "AI is analyzing dataflow status..."
+        
+        with console.status(f"[bold blue]{thinking_msg}"):
+            result, lang = asyncio.run(fetch_and_analyze())
+        
+        if result is None:
+            no_dataflows_msg = "dataflow가 없습니다." if lang == "ko" else "No dataflows found."
+            console.print(f"[yellow]{no_dataflows_msg}[/yellow]")
+            return
+        
+        if json_output:
+            # JSON output
+            console.print_json(data=result.model_dump())
+            return
+        
+        # Rich formatted output
+        # 1. AI Summary Panel
+        summary_panel = Panel(
+            result.summary,
+            title=f"[bold]{'AI 분석 결과' if lang == 'ko' else 'AI Analysis Result'}[/bold]",
+            border_style="cyan",
+            padding=(1, 2)
+        )
+        console.print(summary_panel)
+        console.print()
+        
+        # 2. Dataflows Table (if issues found)
+        if result.failed_dataflows:
+            table = Table(
+                title=f"{'문제가 있는 Dataflows' if lang == 'ko' else 'Dataflows with Issues'} ({len(result.failed_dataflows)} found)"
+            )
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Name" if lang == "en" else "이름", style="cyan", no_wrap=False, max_width=40)
+            table.add_column("ID", style="dim", max_width=20)
+            table.add_column("State" if lang == "en" else "상태", justify="center")
+            table.add_column("Success Rate" if lang == "en" else "성공률", justify="right")
+            table.add_column("Failed Runs" if lang == "en" else "실패 횟수", justify="right")
+            
+            for idx, flow_info in enumerate(result.failed_dataflows, 1):
+                success_rate = flow_info.get("success_rate", 0)
+                
+                # Color-code success rate
+                if success_rate >= 95:
+                    rate_color = "green"
+                elif success_rate >= 80:
+                    rate_color = "yellow"
+                else:
+                    rate_color = "red"
+                
+                state_val = flow_info.get("state", "unknown")
+                state_text = (
+                    f"[green]{state_val}[/green]" 
+                    if state_val == "enabled" 
+                    else f"[yellow]{state_val}[/yellow]"
+                )
+                
+                table.add_row(
+                    str(idx),
+                    flow_info.get("name", "N/A"),
+                    flow_info.get("id", "")[:20] + "...",
+                    state_text,
+                    f"[{rate_color}]{success_rate:.1f}%[/{rate_color}]",
+                    str(flow_info.get("failed_runs", 0))
+                )
+            
+            console.print(table)
+            console.print()
+            
+            # Tips
+            tip_msg = (
+                f"\n[dim]💡 팁: 'aep dataflow failures <번호>'로 상세 오류를 확인할 수 있습니다[/dim]"
+                if lang == "ko"
+                else f"\n[dim]💡 Tip: Use 'aep dataflow failures <number>' to see detailed errors[/dim]"
+            )
+            console.print(tip_msg)
+        else:
+            # No issues found
+            success_msg = (
+                f"[green]✓ 좋은 소식입니다! 최근 {days}일간 문제가 발견되지 않았습니다.[/green]"
+                if lang == "ko"
+                else f"[green]✓ Good news! No issues found in the last {days} days.[/green]"
+            )
+            console.print(success_msg)
+        
+        # Metadata footer
+        footer = (
+            f"[dim]분석 기간: 최근 {days}일 | 총 {result.total_checked}개 dataflow 확인됨[/dim]"
+            if lang == "ko"
+            else f"[dim]Analysis period: Last {days} days | {result.total_checked} dataflows checked[/dim]"
+        )
+        console.print(f"\n{footer}")
+        
+    except ValueError as ve:
+        # AI API key errors
+        lang = detected_lang or "en"  # Fallback to English if not detected
+        console.print(f"[red]Error: {ve}[/red]")
+        if "API authentication failed" in str(ve):
+            console.print("\n[yellow]AI 기능을 사용하려면 API 키 설정이 필요합니다.[/yellow]" if lang == "ko" else "\n[yellow]AI features require API key configuration.[/yellow]")
+            console.print(f"[dim]Run: aep ai set-key anthropic[/dim]" if lang == "en" else f"[dim]실행: aep ai set-key anthropic[/dim]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+def _interactive_ask_mode(days: int, json_output: bool) -> None:
+    """Interactive mode for asking multiple dataflow questions.
+    
+    Args:
+        days: Number of days to analyze
+        json_output: Whether to output as JSON
+    """
+    from adobe_experience.i18n import t
+    
+    # Detect user's language preference from environment/locale
+    # For now, we'll let the first question determine the language
+    
+    # Show welcome message
+    welcome_panel = Panel(
+        "[bold cyan]Interactive Dataflow Analysis Mode[/bold cyan]\n\n"
+        "Ask questions in natural language (Korean or English).\n"
+        "Type your question and press Enter.\n"
+        "Type 'exit', 'quit', or 'q' to leave.\n\n"
+        "[dim]Examples:[/dim]\n"
+        "  • 현재 fail된 dataflow를 알려줘\n"
+        "  • Show me failed dataflows\n"
+        "  • Which dataflows have low success rates?",
+        title="[bold]🤖 AI Dataflow Assistant[/bold]",
+        border_style="blue",
+        padding=(1, 2)
+    )
+    console.print(welcome_panel)
+    console.print()
+    
+    # Interactive loop
+    try:
+        while True:
+            # Prompt for question
+            try:
+                question = Prompt.ask("[bold cyan]Your question[/bold cyan] [dim](exit/q to quit)[/dim]").strip()
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Use 'exit' to quit gracefully[/yellow]")
+                continue
+            
+            # Check for exit commands
+            if question.lower() in ['exit', 'quit', 'q', '종료', '나가기']:
+                console.print("[dim]Exiting interactive mode...[/dim]")
+                break
+            
+            # Skip empty questions
+            if not question:
+                console.print("[yellow]Please enter a question[/yellow]")
+                continue
+            
+            # Handle the question
+            console.print()  # Add spacing
+            _handle_single_question(question, days, json_output)
+            console.print()  # Add spacing after result
+            console.print("[dim]" + "─" * 80 + "[/dim]")  # Separator
+            console.print()
+            
+    except KeyboardInterrupt:
+        console.print("\n[dim]Exiting interactive mode...[/dim]")
+
+
+@dataflow_app.command("ask")
+def ask_dataflow_question(
+    question: Optional[str] = typer.Argument(None, help="Natural language question (Korean or English). Omit to enter interactive mode."),
+    days: int = typer.Option(7, "--days", "-d", help="Number of days to analyze"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Ask questions about dataflows using natural language.
+
+    Uses AI to understand your question and provide intelligent analysis
+    of dataflow health status, failures, and issues.
+
+    MODES:
+        One-shot: aep dataflow ask "your question"
+        Interactive: aep dataflow ask (then type questions)
+
+    Examples:
+        # One-shot mode (backward compatible)
+        aep dataflow ask "현재 fail된 dataflow를 알려줘"
+        aep dataflow ask "Show me failed dataflows"
+        aep dataflow ask "Which dataflows have low success rates?"
+        aep dataflow ask "최근 3일간 문제가 있었던 것은?" --days 3
+        
+        # Interactive mode (no quotes needed!)
+        aep dataflow ask
+        > 현재 fail된 dataflow를 알려줘
+        > Show me dataflows with issues
+        > exit
+    """
+    if question:
+        # One-shot mode (backward compatible)
+        _handle_single_question(question, days, json_output)
+    else:
+        # Interactive mode
+        _interactive_ask_mode(days, json_output)

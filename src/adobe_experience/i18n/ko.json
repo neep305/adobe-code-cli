@@ -123,5 +123,19 @@
       "workflow_examples": "예제 워크플로",
       "tip": "💡 팁: 하이브리드 명령에 --use-ai 플래그를 사용하여 AI 기능 활성화"
     }
+  },
+  "dataflow": {
+    "ask": {
+      "thinking": "AI가 dataflow 상태를 분석하고 있습니다...",
+      "no_dataflows": "dataflow가 없습니다.",
+      "no_failures": "좋은 소식입니다! 최근 {days}일간 문제가 발견되지 않았습니다.",
+      "failures_found": "{count}개의 dataflow에서 문제가 발견되었습니다.",
+      "ai_analysis_result": "AI 분석 결과",
+      "dataflows_with_issues": "문제가 있는 Dataflows",
+      "tip_use_failures": "💡 팁: 'aep dataflow failures <번호>'로 상세 오류를 확인할 수 있습니다",
+      "analysis_period": "분석 기간: 최근 {days}일 | 총 {total}개 dataflow 확인됨",
+      "ai_key_required": "AI 기능을 사용하려면 API 키 설정이 필요합니다.",
+      "run_set_key": "실행: aep ai set-key anthropic"
+    }
   }
 }

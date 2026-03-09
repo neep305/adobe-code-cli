@@ -123,5 +123,19 @@
       "workflow_examples": "Example Workflows",
       "tip": "💡 Tip: Use --use-ai flag with hybrid commands to enable AI features"
     }
+  },
+  "dataflow": {
+    "ask": {
+      "thinking": "AI is analyzing dataflow status...",
+      "no_dataflows": "No dataflows found.",
+      "no_failures": "Good news! No issues found in the last {days} days.",
+      "failures_found": "Issues found in {count} dataflows.",
+      "ai_analysis_result": "AI Analysis Result",
+      "dataflows_with_issues": "Dataflows with Issues",
+      "tip_use_failures": "💡 Tip: Use 'aep dataflow failures <number>' to see detailed errors",
+      "analysis_period": "Analysis period: Last {days} days | {total} dataflows checked",
+      "ai_key_required": "AI features require API key configuration.",
+      "run_set_key": "Run: aep ai set-key anthropic"
+    }
   }
 }
