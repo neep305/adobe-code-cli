@@ -2,6 +2,8 @@
 
 Web interface for the Adobe Experience Platform CLI with full feature parity and real-time synchronization.
 
+CLI installation prerequisite: [../docs/install.md](../docs/install.md)
+
 ## Architecture
 
 - **Backend**: FastAPI (Python 3.12+) - Reuses CLI business logic

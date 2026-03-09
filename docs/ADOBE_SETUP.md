@@ -1,6 +1,10 @@
 # Adobe Developer Console Setup Guide
 
+Back to docs index: [README.md](README.md)
+
 This guide walks you through setting up OAuth Server-to-Server credentials for Adobe Experience Platform API access.
+
+For CLI installation and virtual environment setup, see [install.md](install.md).
 
 ## Prerequisites
 
@@ -119,7 +123,10 @@ Once you have your credentials:
    aep auth test
    ```
 
-3. Start using the CLI:
+3. Continue with full setup and verification:
+   - [install.md](install.md)
+
+4. Start using the CLI:
    ```bash
    aep schema list
    ```

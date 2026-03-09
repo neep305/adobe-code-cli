@@ -1,5 +1,7 @@
 # Adobe AEP Web UI - Quick Start
 
+Before running web services, install the CLI and set up your environment via [../docs/install.md](../docs/install.md).
+
 ## Start Development Environment
 
 From the `web/` directory, run:
