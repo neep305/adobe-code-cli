@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
+  { name: "Analyze", href: "/analyze" },
   { name: "Batches", href: "/batches" },
   { name: "Dataflows", href: "/dataflows" },
   { name: "Datasets", href: "/datasets" },

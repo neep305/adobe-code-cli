@@ -65,16 +65,21 @@ class DataAnalysisAgent:
             },
         }
 
+        # Confidence scoring based on data availability and quality
+        # 0.45 (LOW): No sample data, results are placeholder-level
+        # 0.55 (LOW-MEDIUM): Tool results only, limited visibility
+        # 0.65 (MEDIUM): Good structured sample, standard analysis
+        # 0.8 (HIGH): Large sample (10+ records), reliable patterns
         confidence = 0.65
         warnings: List[str] = []
         if not records:
             warnings.append("No structured sample records provided in payload")
-            confidence = 0.45
+            confidence = 0.45  # Low: no real data analyzed
             if tool_results:
-                confidence = 0.55
+                confidence = 0.55  # Slightly better with tool context
                 warnings.append("Using tool call results as supplemental context")
         elif len(records) >= 10:
-            confidence = 0.8
+            confidence = 0.8  # High: sufficient sample size for pattern detection
 
         return AgentResult(
             agent_name=self.name,

@@ -30,11 +30,15 @@ class SupervisorGraphRunner:
         read_only_default: bool = True,
         tool_bridge: Optional[Any] = None,
         tracer: Optional[Any] = None,
+        verbose: bool = False,
+        console: Optional[Any] = None,
     ) -> None:
         self.registry = registry
         self.read_only_default = read_only_default
         self.tool_bridge = tool_bridge
         self.tracer = tracer or get_tracer("supervisor")
+        self.verbose = verbose
+        self.console = console
         register_default_agents(self.registry)
 
     def run(self, request: Dict[str, Any]) -> GraphState:
@@ -46,13 +50,42 @@ class SupervisorGraphRunner:
             run_type="chain",
         ) as span:
             state = self.normalize_input(request)
+            
+            if self.verbose and self.console:
+                self.console.print("[bold]Step 1:[/bold] Normalizing input...")
+            
             state.normalized_intent = self.classify_intent(state)
+            
+            if self.verbose and self.console:
+                self.console.print(f"[bold]Step 2:[/bold] Intent classified as: [cyan]{state.normalized_intent}[/cyan]")
+            
             state.context = self.build_context(state)
+            
+            if self.verbose and self.console:
+                self.console.print(f"[bold]Step 3:[/bold] Context built (source: [cyan]{state.context.input_source}[/cyan])")
+            
             self.execute_tool_calls(state)
             state.route = self.route_capability(state)
+            
+            if self.verbose and self.console:
+                self.console.print(f"[bold]Step 4:[/bold] Route determined: [yellow bold]{state.route}[/yellow bold]")
+            
             self.execute_route(state)
             self.merge_results(state)
+            
+            if self.verbose and self.console:
+                self.console.print(f"[bold]Step 5:[/bold] Results merged (confidence: [cyan]{state.confidence:.2f}[/cyan])")
+            
             self.apply_confidence_gate(state)
+            
+            if self.verbose and self.console:
+                confidence_level = "HIGH" if state.confidence >= 0.7 else ("MEDIUM" if state.confidence >= 0.5 else "LOW")
+                confidence_color = "green" if state.confidence >= 0.7 else ("yellow" if state.confidence >= 0.5 else "red")
+                self.console.print(f"[bold]Step 6:[/bold] Confidence: [{confidence_color}]{state.confidence:.2f} ({confidence_level})[/{confidence_color}]")
+                if state.warnings:
+                    for warning in state.warnings:
+                        self.console.print(f"  [yellow]⚠[/yellow]  {warning}")
+            
             self.finalize_response(state)
             span.set_outputs(
                 {
@@ -187,6 +220,11 @@ class SupervisorGraphRunner:
             return
 
         agent = candidates[0]
+        
+        if self.verbose and self.console:
+            self.console.print(f"\n[bold cyan]🤖 Executing Agent:[/bold cyan] {agent.name}")
+            self.console.print(f"   [dim]Capability: {capability.value}[/dim]")
+        
         with self.tracer.span(
             "supervisor.run_agent",
             inputs={"agent": agent.name, "capability": capability.value},
@@ -196,6 +234,33 @@ class SupervisorGraphRunner:
             state.selected_agents.append(agent.name)
             result = agent.execute(state.context)
             state.results[agent.name] = result
+            
+            if self.verbose and self.console:
+                status_icon = "✓" if result.status == AgentResultStatus.SUCCESS else ("⚠" if result.status == AgentResultStatus.WARNING else "✗")
+                status_color = "green" if result.status == AgentResultStatus.SUCCESS else ("yellow" if result.status == AgentResultStatus.WARNING else "red")
+                confidence_color = "green" if result.confidence >= 0.7 else ("yellow" if result.confidence >= 0.5 else "red")
+                
+                self.console.print(f"   [bold {status_color}]{status_icon} Status:[/bold {status_color}] {result.status.value}")
+                self.console.print(f"   [bold]Confidence:[/bold] [{confidence_color}]{result.confidence:.2f}[/{confidence_color}]")
+                self.console.print(f"   [bold]Summary:[/bold] {result.summary}")
+                
+                # Show key metrics from structured output
+                if result.structured_output:
+                    record_count = result.structured_output.get("record_count")
+                    field_count = result.structured_output.get("field_count")
+                    xdm_class = result.structured_output.get("xdm_class")
+                    
+                    if record_count is not None:
+                        self.console.print(f"   [dim]Records analyzed: {record_count}[/dim]")
+                    if field_count is not None:
+                        self.console.print(f"   [dim]Fields detected: {field_count}[/dim]")
+                    if xdm_class:
+                        self.console.print(f"   [dim]Recommended XDM class: {xdm_class}[/dim]")
+                
+                if result.warnings:
+                    for warning in result.warnings:
+                        self.console.print(f"   [yellow]⚠  {warning}[/yellow]")
+            
             span.set_outputs(
                 {
                     "status": result.status.value,
@@ -221,7 +286,16 @@ class SupervisorGraphRunner:
         state.confidence = sum(confidences) / len(confidences)
 
     def apply_confidence_gate(self, state: GraphState) -> None:
-        """Apply confidence thresholds for warning/fallback behavior."""
+        """Apply confidence thresholds for warning/fallback behavior.
+        
+        Confidence Interpretation:
+        - < 0.5 (LOW): Results uncertain, fallback recommended
+        - 0.5-0.7 (MEDIUM): Results reasonable but need verification
+        - >= 0.7 (HIGH): Results reliable, safe for automation
+        
+        The supervisor aggregates individual agent confidence scores (average)
+        and applies these gates to guide downstream decision-making.
+        """
         if state.confidence < 0.5:
             state.warnings.append("Low confidence (<0.5): safe fallback recommended")
             return

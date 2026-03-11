@@ -52,6 +52,9 @@ class SchemaMappingAgent:
             "schema_create_template": self._schema_command_template(class_id),
         }
 
+        # Confidence based on field coverage
+        # 0.5 (LOW): No fields to map, placeholder recommendations only
+        # 0.7 (MEDIUM-HIGH): Fields present, actionable XDM mapping generated
         confidence = 0.7 if fields else 0.5
         warnings: List[str] = []
         if not fields:

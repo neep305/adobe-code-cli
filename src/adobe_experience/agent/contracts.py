@@ -49,7 +49,20 @@ class ExecutionContext(BaseModel):
 
 
 class AgentResult(BaseModel):
-    """Standardized output shape from any agent implementation."""
+    """Standardized output shape from any agent implementation.
+    
+    Attributes:
+        confidence: Quality score for this agent's output (0.0-1.0)
+            - 0.0-0.5 (LOW): Results are uncertain or incomplete. 
+                            Human review required. Consider fallback strategies.
+            - 0.5-0.7 (MEDIUM): Results are reasonable but should be verified.
+                                Suitable for assisted workflows with validation.
+            - 0.7-1.0 (HIGH): Results are reliable with strong evidence.
+                              Safe for automated workflows and production use.
+            
+            Confidence is calculated based on data quality, completeness, 
+            and agent-specific criteria (e.g., sample size, field coverage).
+    """
 
     contract_version: str = CONTRACT_VERSION
     agent_name: str
@@ -57,7 +70,15 @@ class AgentResult(BaseModel):
     summary: str
     structured_output: Dict[str, Any] = Field(default_factory=dict)
     artifacts: List[str] = Field(default_factory=list)
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Quality score: 0.0-0.5 (low/review needed), "
+            "0.5-0.7 (medium/verify), 0.7-1.0 (high/reliable)"
+        ),
+    )
     warnings: List[str] = Field(default_factory=list)
     next_actions: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)

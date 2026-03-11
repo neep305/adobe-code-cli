@@ -99,13 +99,70 @@ def _render_markdown(state) -> str:
 @command_metadata(CommandCategory.ENHANCED, "Run supervisor-based customer data analysis")
 @analyze_app.command("run")
 def run_analysis(
-    intent: str = typer.Option(..., "--intent", "-i", help="Natural language analysis intent"),
-    file: Optional[Path] = typer.Option(None, "--file", "-f", help="Input file (.json or .csv)"),
-    dataset_id: Optional[str] = typer.Option(None, "--dataset-id", help="AEP dataset ID"),
-    directory: Optional[Path] = typer.Option(None, "--directory", help="Directory path (future use)"),
-    output_dir: Optional[Path] = typer.Option(None, "--output-dir", "-o", help="Output directory"),
+    intent: str = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help=(
+            "Natural language description of what you want to analyze. "
+            "Examples: 'Analyze customer data quality', "
+            "'Generate XDM schema mapping for orders', "
+            "'Analyze and create schema for customer profiles'"
+        ),
+    ),
+    file: Optional[Path] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        help=(
+            "Path to JSON or CSV file containing sample records. "
+            "JSON: array of objects or single object. "
+            "CSV: header row + data rows. "
+            "Example: test-data/ecommerce/customers.json"
+        ),
+    ),
+    dataset_id: Optional[str] = typer.Option(
+        None,
+        "--dataset-id",
+        help="AEP dataset ID (alternative to --file)",
+    ),
+    directory: Optional[Path] = typer.Option(
+        None,
+        "--directory",
+        help="Directory path (future use)",
+    ),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output-dir",
+        "-o",
+        help="Output directory for analysis results (default: ./output/analysis)",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed agent execution trace with step-by-step progress",
+    ),
 ) -> None:
-    """Run data analysis through supervisor routing and save report artifacts."""
+    """Run AI-powered data analysis through supervisor routing.
+    
+    The supervisor analyzes your intent and routes to appropriate agents:
+    
+      • Analysis route: Data quality profiling and relationship detection
+      • Schema route: XDM schema mapping recommendations  
+      • Mixed route: Both analysis and schema mapping
+    
+    Examples:
+    
+      # Analyze customer data quality
+      aep analyze run --intent "Analyze customer data" --file customers.json
+      
+      # Generate XDM schema recommendations
+      aep analyze run --intent "Create XDM schema" --file orders.json --verbose
+      
+      # Full analysis with schema mapping
+      aep analyze run --intent "Analyze and map to XDM" --file data.csv -o output/results
+    """
     if file and dataset_id:
         raise typer.BadParameter("Use either --file or --dataset-id, not both")
 
@@ -126,8 +183,14 @@ def run_analysis(
         },
     }
 
-    runner = SupervisorGraphRunner(AgentRegistry())
+    if verbose:
+        console.print("\n[bold cyan]🚀 Starting Supervisor Analysis[/bold cyan]\n")
+
+    runner = SupervisorGraphRunner(AgentRegistry(), verbose=verbose, console=console)
     state = runner.run(request)
+
+    if verbose:
+        console.print("\n[bold green]✅ Analysis Complete[/bold green]\n")
 
     table = Table(title="Analysis Summary")
     table.add_column("Key")

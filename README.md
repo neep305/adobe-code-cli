@@ -17,6 +17,57 @@ Current version: 0.2.0
 - Web UI lifecycle commands for local full-stack workflows
 - Type-safe implementation with Pydantic and rich terminal output
 
+## Project Structure
+
+```
+adobe-code/
+├── src/
+│   └── adobe_experience/          # Main package
+│       ├── aep/                   # AEP API client (authentication, HTTP)
+│       ├── agent/                 # AI inference engine & supervisor graph
+│       │   ├── agents/            # Domain-specific agents
+│       │   ├── inference.py       # LLM integration & tool calling
+│       │   ├── supervisor_graph.py # LangGraph supervisor workflow
+│       │   └── workflow.py        # Agent workflow orchestration
+│       ├── cache/                 # Response caching layer
+│       ├── catalog/               # AEP Catalog service client
+│       ├── cli/                   # Typer CLI commands
+│       │   ├── main.py            # Entry point & command registration
+│       │   ├── schema.py          # Schema commands
+│       │   ├── dataset.py         # Dataset commands
+│       │   ├── ingest.py          # Ingestion commands
+│       │   ├── dataflow.py        # Dataflow commands
+│       │   ├── destination.py     # Destination commands
+│       │   ├── segment.py         # Segmentation commands
+│       │   ├── auth.py            # Auth commands
+│       │   ├── ai.py              # AI provider commands
+│       │   ├── llm.py             # LLM chat interface
+│       │   └── web.py             # Web UI commands
+│       ├── destination/           # Destination management
+│       ├── flow/                  # Dataflow management
+│       ├── generators/            # Data generators
+│       ├── ingestion/             # Batch/streaming ingestion
+│       ├── processors/            # Data transformation & validation
+│       ├── schema/                # XDM schema analysis & generation
+│       │   ├── xdm.py             # XDMSchemaAnalyzer
+│       │   └── models.py          # Pydantic schema models
+│       └── segmentation/          # Audience segmentation
+├── web/                           # Full-stack web UI
+│   ├── backend/                   # FastAPI backend
+│   └── frontend/                  # Next.js + Tailwind frontend
+├── tests/                         # Unit & integration tests
+├── docs/                          # Documentation
+│   ├── install.md                 # Installation guide
+│   ├── ADOBE_SETUP.md             # Adobe credential setup
+│   ├── LLM_MODE.md                # LLM configuration
+│   └── LANGSMITH_SETUP.md         # LangSmith observability
+├── examples/                      # Usage examples & demos
+├── scripts/                       # Utility & setup scripts
+├── test-data/                     # Sample datasets for testing
+├── .env.example                   # Environment variable template
+└── pyproject.toml                 # Project configuration
+```
+
 ## Quick Install
 
 Detailed installation, virtual environment setup, verification, and troubleshooting are in [docs/install.md](docs/install.md).
@@ -51,6 +102,19 @@ aep --help
 
 If you are new to Adobe Developer Console setup, follow [docs/ADOBE_SETUP.md](docs/ADOBE_SETUP.md) first.
 
+### Optional: Enable LangSmith Tracing
+
+For AI workflow observability and debugging, enable LangSmith tracing (opt-in):
+
+```bash
+# In your .env file
+LANGSMITH_ENABLED=true
+LANGSMITH_API_KEY=your_key_from_smith.langchain.com
+LANGSMITH_PROJECT=adobe-aep-cli
+```
+
+See [docs/LANGSMITH_SETUP.md](docs/LANGSMITH_SETUP.md) for detailed setup and usage.
+
 ## Command Highlights
 
 ```bash
@@ -80,6 +144,7 @@ aep web status
 - Installation and troubleshooting: [docs/install.md](docs/install.md)
 - Adobe credential setup: [docs/ADOBE_SETUP.md](docs/ADOBE_SETUP.md)
 - LLM mode and model settings: [docs/LLM_MODE.md](docs/LLM_MODE.md)
+- **LangSmith observability setup**: [docs/LANGSMITH_SETUP.md](docs/LANGSMITH_SETUP.md)
 - Web UI guide: [web/README.md](web/README.md)
 
 ## Development Installation

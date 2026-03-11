@@ -95,6 +95,10 @@ app.include_router(batch.router, prefix="/api", tags=["Batches"])
 from app.routers import dataflow
 app.include_router(dataflow.router, prefix="/api/dataflows", tags=["Dataflows"])
 
+# Include analyze router
+from app.routers import analyze
+app.include_router(analyze.router, prefix="/api/analyze", tags=["Analyze"])
+
 # TODO: Include other routers
 # from app.routers import dataset
 # app.include_router(dataset.router, prefix="/api/datasets", tags=["Datasets"])
