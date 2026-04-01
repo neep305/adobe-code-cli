@@ -33,18 +33,49 @@ async def get_aep_client(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> AEPClient:
-    """Get AEP client with user's credentials."""
-    # TODO: Get user's AEP config from database
-    # For now, use default config from environment
+    """Get AEP client using user's saved credentials, falling back to environment variables."""
+    from base64 import b64decode
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models import AEPConfig as AEPConfigModel
+
+    # Try to load user's saved AEP config from DB first
+    result = await db.execute(
+        sa_select(AEPConfigModel).where(
+            AEPConfigModel.user_id == current_user.id,
+            AEPConfigModel.is_default == True,  # noqa: E712
+        )
+    )
+    db_config = result.scalar_one_or_none()
+
+    if db_config:
+        try:
+            client_secret = b64decode(db_config.encrypted_client_secret.encode()).decode()
+        except Exception:
+            client_secret = db_config.encrypted_client_secret
+
+        config = AEPConfig(
+            client_id=db_config.client_id,
+            client_secret=client_secret,
+            org_id=db_config.org_id,
+            technical_account_id=db_config.technical_account_id,
+            sandbox_name=db_config.sandbox_name,
+            tenant_id=db_config.tenant_id or "",
+        )
+        return AEPClient(config)
+
+    # Fallback to environment variables
     from app.config import get_settings
     settings = get_settings()
-    
+
     if not settings.aep_client_id or not settings.aep_client_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Adobe Experience Platform credentials not configured"
+            detail="Adobe Experience Platform credentials not configured. "
+                   "Save your AEP credentials via PUT /api/settings/aep",
         )
-    
+
     config = AEPConfig(
         client_id=settings.aep_client_id,
         client_secret=settings.aep_client_secret.get_secret_value() if settings.aep_client_secret else None,
@@ -53,7 +84,6 @@ async def get_aep_client(
         sandbox_name=settings.aep_sandbox_name,
         tenant_id=settings.aep_tenant_id or "",
     )
-    
     return AEPClient(config)
 
 
@@ -353,6 +383,7 @@ async def complete_batch(
 async def upload_file(
     batch_id: int,
     file: UploadFile = File(...),
+    upload_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     aep_client: AEPClient = Depends(get_aep_client)
@@ -392,11 +423,26 @@ async def upload_file(
             detail=f"Cannot upload to batch in status: {batch.status}"
         )
     
+    from app.websockets.upload_progress import upload_progress_manager
+
+    effective_upload_id = upload_id or f"{batch.aep_batch_id}:{file.filename}"
+
     try:
         # Read file content
         file_content = await file.read()
         file_size = len(file_content)
-        
+
+        # Notify: upload started
+        await upload_progress_manager.update(effective_upload_id, {
+            "event": "progress",
+            "upload_id": effective_upload_id,
+            "batch_id": batch_id,
+            "file_name": file.filename,
+            "bytes_total": file_size,
+            "bytes_sent": 0,
+            "status": "uploading",
+        })
+
         # Upload to Adobe AEP
         async with aep_client:
             catalog = CatalogServiceClient(aep_client)
@@ -406,22 +452,43 @@ async def upload_file(
                 file_name=file.filename or "data.parquet",
                 file_content=file_content
             )
-        
+
         # Update database
         batch.files_uploaded += 1
         if batch.files_count == 0:
             batch.files_count = 1
         await db.commit()
-        
+
+        # Notify: upload complete
+        await upload_progress_manager.update(effective_upload_id, {
+            "event": "progress",
+            "upload_id": effective_upload_id,
+            "batch_id": batch_id,
+            "file_name": file.filename,
+            "bytes_total": file_size,
+            "bytes_sent": file_size,
+            "status": "done",
+        })
+        upload_progress_manager.finish(effective_upload_id)
+
         return FileUploadResponse(
             file_name=file.filename or "data.parquet",
             file_size=file_size,
-            upload_id=f"{batch.aep_batch_id}:{file.filename}",
+            upload_id=effective_upload_id,
             status="completed",
             message="File uploaded successfully"
         )
-        
+
     except Exception as e:
+        # Notify: upload failed
+        await upload_progress_manager.update(effective_upload_id, {
+            "event": "progress",
+            "upload_id": effective_upload_id,
+            "batch_id": batch_id,
+            "file_name": file.filename,
+            "status": "error",
+            "error": str(e),
+        })
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Upload failed: {str(e)}"

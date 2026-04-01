@@ -1,0 +1,49 @@
+# Include package metadata
+include README.md
+include LICENSE
+include CLAUDE.md
+include *.md
+
+# Include configuration files
+include pyproject.toml
+
+# Include source code
+recursive-include src *.py
+
+# Include web backend
+recursive-include web/backend *.py
+recursive-include web/backend/app *.py
+
+# Include web frontend static build (if exists)
+# Note: Run `cd web/frontend && npm run export` before building package
+recursive-include web/frontend/out *
+graft web/frontend/out
+
+# Exclude development files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *.swo
+global-exclude *~
+
+# Exclude node_modules and source files
+prune web/frontend/node_modules
+prune web/frontend/app
+prune web/frontend/components
+prune web/frontend/lib
+prune web/frontend/public
+
+# Exclude test files
+prune tests
+exclude test-data
+
+# Exclude documentation
+prune docs
+prune examples
+prune output
+
+# Exclude build artifacts
+prune build
+prune dist
+prune *.egg-info

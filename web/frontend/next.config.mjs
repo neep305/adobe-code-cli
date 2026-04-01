@@ -2,19 +2,17 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'standalone',
+  output: 'export',  // Static export for standalone mode
+  distDir: 'out',
+  images: {
+    unoptimized: true,  // Required for static export
+  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
-      },
-    ];
-  },
+  // Note: rewrites are not supported in static export
+  // API calls should use NEXT_PUBLIC_API_URL directly
 };
 
 export default nextConfig;

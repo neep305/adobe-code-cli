@@ -2,31 +2,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 
 interface BatchMetricsCardProps {
-  recordsProcessed: number;
-  recordsFailed: number;
-  sizeBytes: number;
+  recordsProcessed?: number;
+  recordsFailed?: number;
   createdAt: string;
   completedAt?: string;
+  durationSeconds?: number;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
 }
 
 export function BatchMetricsCard({
-  recordsProcessed,
-  recordsFailed,
-  sizeBytes,
+  recordsProcessed = 0,
+  recordsFailed = 0,
   createdAt,
   completedAt,
+  durationSeconds,
 }: BatchMetricsCardProps) {
-  const successRate = recordsProcessed > 0
-    ? ((recordsProcessed - recordsFailed) / recordsProcessed * 100).toFixed(1)
-    : "0.0";
+  const successRate =
+    recordsProcessed > 0
+      ? (((recordsProcessed - recordsFailed) / recordsProcessed) * 100).toFixed(1)
+      : "0.0";
 
   return (
     <Card>
@@ -36,11 +37,11 @@ export function BatchMetricsCard({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm font-medium text-gray-500">Records Processed</p>
+            <p className="text-sm font-medium text-gray-500">Processed</p>
             <p className="text-2xl font-bold">{recordsProcessed.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">Records Failed</p>
+            <p className="text-sm font-medium text-gray-500">Failed</p>
             <p className="text-2xl font-bold text-red-600">
               {recordsFailed.toLocaleString()}
             </p>
@@ -49,10 +50,12 @@ export function BatchMetricsCard({
             <p className="text-sm font-medium text-gray-500">Success Rate</p>
             <p className="text-2xl font-bold text-green-600">{successRate}%</p>
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Size</p>
-            <p className="text-2xl font-bold">{formatBytes(sizeBytes)}</p>
-          </div>
+          {durationSeconds !== undefined && (
+            <div>
+              <p className="text-sm font-medium text-gray-500">Duration</p>
+              <p className="text-2xl font-bold">{formatDuration(durationSeconds)}</p>
+            </div>
+          )}
         </div>
         <div className="border-t pt-4">
           <div className="space-y-2 text-sm">

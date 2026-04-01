@@ -14,6 +14,12 @@ import { BatchMetricsCard } from "@/components/batch/batch-metrics-card";
 import Link from "next/link";
 import { ArrowLeft, Wifi, WifiOff } from "lucide-react";
 
+// Required for static export - generates no static paths by default
+// Pages will be rendered client-side when accessed
+export function generateStaticParams() {
+  return [];
+}
+
 export default function BatchDetailPage({
   params,
 }: {
@@ -103,8 +109,8 @@ export default function BatchDetailPage({
 
                     <div className="grid grid-cols-2 gap-4 text-sm pt-4 border-t">
                       <div>
-                        <p className="text-gray-500">Format</p>
-                        <p className="font-medium">{batch.format.toUpperCase()}</p>
+                        <p className="text-gray-500">Dataset</p>
+                        <p className="font-medium">{batch.dataset_name ?? `ID: ${batch.dataset_id}`}</p>
                       </div>
                       <div>
                         <p className="text-gray-500">Dataset ID</p>
@@ -148,7 +154,7 @@ export default function BatchDetailPage({
                 <BatchMetricsCard
                   recordsProcessed={batch.records_processed}
                   recordsFailed={batch.records_failed}
-                  sizeBytes={batch.size_bytes}
+                  durationSeconds={batch.duration_seconds}
                   createdAt={batch.created_at}
                   completedAt={batch.completed_at}
                 />

@@ -136,6 +136,28 @@
       "analysis_period": "Analysis period: Last {days} days | {total} dataflows checked",
       "ai_key_required": "AI features require API key configuration.",
       "run_set_key": "Run: aep ai set-key anthropic"
+    },
+    "migration": {
+      "agent_title": "AEP Migration Agent",
+      "analyzing_source": "Analyzing source data structure...",
+      "suggesting_schema": "Constructing suitable XDM schema...",
+      "mapping_confidence": "Mapping Confidence",
+      "suggested_identity": "Suggested Identity",
+      "start_migration": "Would you like to start the migration?",
+      "transformation_needed": "Data transformation needed: {reason}",
+      "fix_suggestion": "Apply AI-suggested fix",
+      "validation_report": "Data Validation Report",
+      "success_rate": "Success Rate"
+    },
+    "mindmap": {
+      "title": "AEP Resource Mindmap",
+      "analyzing_relations": "Analyzing relations and mapping resources...",
+      "generating_graph": "Generating graph data ({format})...",
+      "nodes_found": "{count} resource nodes found.",
+      "export_success": "Mindmap exported successfully: {path}",
+      "ai_insight_isolated": "Isolated resources with no connections found.",
+      "ai_insight_complex": "This area has high complexity, potential bottleneck detected.",
+      "view_in_browser": "View Mindmap in browser"
     }
   }
 }

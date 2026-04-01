@@ -9,7 +9,10 @@ export function DataflowStatusBadge({ state }: DataflowStatusBadgeProps) {
   const displayText = state.charAt(0).toUpperCase() + state.slice(1);
 
   return (
-    <Badge variant={variant} className={state === "enabled" ? "bg-green-600" : "bg-gray-400"}>
+    <Badge
+      variant={variant}
+      className={state === "enabled" ? "bg-primary hover:bg-primary/90" : "bg-gray-400"}
+    >
       {displayText}
     </Badge>
   );

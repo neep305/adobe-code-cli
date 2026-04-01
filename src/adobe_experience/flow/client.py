@@ -270,7 +270,11 @@ class FlowServiceClient:
         """
         # Get all runs and filter for failed status
         all_runs = await self.list_runs(flow_id, limit=limit)
-        return [run for run in all_runs if run.status == "failed"]
+        return [
+            run
+            for run in all_runs
+            if run.status is not None and run.status.value == RunStatus.FAILED
+        ]
 
     async def list_runs_by_date_range(
         self,

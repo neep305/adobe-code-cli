@@ -79,3 +79,27 @@ oauth_server_to_server.postman_environment.json
 /test-data/*/
 !test-data/ecommerce/*.json
 !test-data/README.md
+
+output/
+
+# Root-level debug & analysis scripts (test artifacts)
+/analyze_langsmith_env.py
+/check_traces.py
+/check_trace_details.py
+/check_verbose_traces.py
+/debug_langsmith.py
+
+# Completion / status reports generated during testing
+/LANGSMITH_ENV_STANDARD_ANALYSIS.md
+/LANGSMITH_IMPLEMENTATION_COMPLETE.md
+/LANGSMITH_SUCCESS_REPORT.md
+/MULTI_PROVIDER_COMPLETE.md
+/PHASE4_COMPLETE.md
+/SIGNUP_FIX_REPORT.md
+/INTEGRATION_TEST_PLAN.md
+
+# Test-generated data / scenario files
+/customer_profile_schema.json
+
+# Adobe workspace temp directory
+.adobe-workspace/

@@ -136,6 +136,34 @@
       "analysis_period": "분석 기간: 최근 {days}일 | 총 {total}개 dataflow 확인됨",
       "ai_key_required": "AI 기능을 사용하려면 API 키 설정이 필요합니다.",
       "run_set_key": "실행: aep ai set-key anthropic"
+    },
+    "migration": {
+      "agent_title": "AEP 마이그레이션 에이전트",
+      "analyzing_source": "소스 데이터 구조를 분석하고 있습니다...",
+      "suggesting_schema": "데이터에 적합한 XDM 스키마를 구성 중입니다.",
+      "mapping_confidence": "매핑 신뢰도",
+      "suggested_identity": "추천 식별자(Identity)",
+      "start_migration": "마이그레이션을 시작하시겠습니까?",
+      "transformation_needed": "데이터 변환이 필요합니다: {reason}",
+      "fix_suggestion": "AI 추천 수정사항 적용",
+      "validation_report": "데이터 검증 보고서",
+      "success_rate": "성공률"
+    },
+    "mindmap": {
+      "title": "AEP 리소스 마인드맵",
+      "analyzing_relations": "리소드 간의 관계를 분석하고 지도를 그리는 중입니다...",
+      "generating_graph": "그래프 데이터를 생성하고 있습니다 ({format}).",
+      "nodes_found": "{count}개의 리소스 노드가 발견되었습니다.",
+      "export_success": "마인드맵이 성공적으로 내보내졌습니다: {path}",
+      "ai_insight_isolated": "연결이 끊긴 고립된 리소스가 발견되었습니다.",
+      "ai_insight_complex": "이 지점은 데이터 흐름이 매우 복잡하여 병목이 예상됩니다.",
+      "view_in_browser": "브라우저에서 마인드맵 보기",
+      "workflow_guide": "다음 단계 가이드",
+      "agent_roles": {
+        "schema_architect": "스키마 아키텍트",
+        "identity_expert": "아이덴티티 전문가",
+        "data_engineer": "데이터 엔지니어"
+      }
     }
   }
 }

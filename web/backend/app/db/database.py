@@ -1,5 +1,6 @@
 """Database connection and session management."""
 
+from pathlib import Path
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -8,14 +9,29 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Create async engine
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+# Ensure database directory exists for SQLite
+if settings.database_url.startswith("sqlite"):
+    db_path = settings.database_url.replace("sqlite+aiosqlite:///", "")
+    db_file = Path.home() / db_path
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+
+# Create async engine with appropriate settings for each database type
+if settings.database_url.startswith("sqlite"):
+    # SQLite configuration
+    engine = create_async_engine(
+        settings.database_url.replace("sqlite+aiosqlite:///", f"sqlite+aiosqlite:///{Path.home()}/"),
+        echo=settings.debug,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    # PostgreSQL configuration
+    engine = create_async_engine(
+        settings.database_url,
+        echo=settings.debug,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
 
 # Create session factory
 AsyncSessionLocal = async_sessionmaker(

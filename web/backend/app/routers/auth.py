@@ -1,12 +1,15 @@
 """Authentication API router."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.schemas import Token, UserCreate, UserResponse
+from app.auth.schemas import Token, UserResponse, user_create_from_register_body
 from app.auth.security import create_access_token, get_password_hash, verify_password
 from app.db.database import get_db
 from app.db.models import User
@@ -16,36 +19,33 @@ router = APIRouter()
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(
-    user_data: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    body: dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Register a new user account.
-    
-    Args:
-        user_data: User registration data
-        db: Database session
-        
-    Returns:
-        Access token for immediate login
-        
-    Raises:
-        HTTPException: If email already registered
+
+    Body is parsed manually so legacy keys (``email``, ``username``) never hit Pydantic as ``EmailStr``.
     """
+    try:
+        user_data = user_create_from_register_body(body)
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.errors()) from e
+
     # Check if user already exists
     result = await db.execute(
-        select(User).where(User.email == user_data.email)
+        select(User).where(User.email == user_data.login_id)
     )
     existing_user = result.scalar_one_or_none()
     
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="This ID is already registered",
         )
     
     # Create new user
     new_user = User(
-        email=user_data.email,
+        email=user_data.login_id,
         name=user_data.name,
         hashed_password=get_password_hash(user_data.password),
         role="user",
@@ -92,7 +92,7 @@ async def login(
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect ID or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

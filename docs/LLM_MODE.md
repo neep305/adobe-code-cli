@@ -41,6 +41,17 @@ LLM Mode enables natural language interaction with Adobe Experience Platform thr
    # export ANTHROPIC_API_KEY=sk-ant-...
    ```
 
+3. **Optional: LangSmith Tracing**
+    Enable request/response tracing for LLM chat, AI inference, and supervisor flows.
+    ```bash
+    export LANGSMITH_ENABLED=true
+    export LANGSMITH_API_KEY=<your-langsmith-key>
+    export LANGSMITH_PROJECT=adobe-aep-cli
+    ```
+    Notes:
+    - Tracing is opt-in. If LANGSMITH_ENABLED is not true, tracing is a no-op.
+    - Sensitive keys are masked before trace payloads are sent.
+
 ### Usage
 
 #### Interactive Mode

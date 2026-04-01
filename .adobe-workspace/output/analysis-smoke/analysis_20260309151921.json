@@ -1,0 +1,142 @@
+{
+  "request_id": "req-20260309151921",
+  "trace_id": "trace-20260309151921",
+  "raw_request": {
+    "request_id": "req-20260309151921",
+    "trace_id": "trace-20260309151921",
+    "intent": "analyze customer dataset and generate schema mapping",
+    "input_source": "file",
+    "payload": {
+      "records": [
+        {
+          "customer_id": "c1",
+          "email": "a@example.com",
+          "country": "US"
+        },
+        {
+          "customer_id": "c2",
+          "email": "b@example.com",
+          "country": "KR"
+        }
+      ],
+      "dataset_id": null,
+      "directory": null
+    }
+  },
+  "normalized_intent": "mixed",
+  "route": "mixed",
+  "context": {
+    "contract_version": "1.0",
+    "request_id": "req-20260309151921",
+    "trace_id": "trace-20260309151921",
+    "intent": "analyze customer dataset and generate schema mapping",
+    "input_source": "file",
+    "payload": {
+      "records": [
+        {
+          "customer_id": "c1",
+          "email": "a@example.com",
+          "country": "US"
+        },
+        {
+          "customer_id": "c2",
+          "email": "b@example.com",
+          "country": "KR"
+        }
+      ],
+      "dataset_id": null,
+      "directory": null
+    },
+    "capability_hints": [],
+    "safety_mode": "read_only",
+    "metadata": {}
+  },
+  "selected_agents": [
+    "data-analysis-agent",
+    "schema-mapping-agent"
+  ],
+  "results": {
+    "data-analysis-agent": {
+      "contract_version": "1.0",
+      "agent_name": "data-analysis-agent",
+      "status": "success",
+      "summary": "Analyzed 2 records across 3 fields",
+      "structured_output": {
+        "record_count": 2,
+        "field_count": 3,
+        "fields": [
+          "country",
+          "customer_id",
+          "email"
+        ],
+        "quality": {
+          "completeness": 1.0,
+          "null_like_values": 0
+        },
+        "relationship_hints": [
+          {
+            "field": "customer_id",
+            "hint": "possible_foreign_key",
+            "confidence": 0.7
+          }
+        ],
+        "tool_context": {
+          "tool_call_count": 0,
+          "successful_calls": 0
+        }
+      },
+      "artifacts": [],
+      "confidence": 0.65,
+      "warnings": [],
+      "next_actions": [
+        "Use schema-mapping-agent to generate XDM mapping guidance",
+        "Review low-confidence fields before schema creation"
+      ],
+      "metadata": {}
+    },
+    "schema-mapping-agent": {
+      "contract_version": "1.0",
+      "agent_name": "schema-mapping-agent",
+      "status": "success",
+      "summary": "Generated XDM mapping guidance for 3 fields",
+      "structured_output": {
+        "xdm_class": {
+          "name": "Profile",
+          "class_id": "https://ns.adobe.com/xdm/context/profile"
+        },
+        "identity": {
+          "primary_field": "email",
+          "namespace": "Email",
+          "reasoning": "Email is a common primary identity for customer profile use cases"
+        },
+        "field_groups": [
+          "https://ns.adobe.com/xdm/context/profile",
+          "https://ns.adobe.com/xdm/context/person-details",
+          "https://ns.adobe.com/xdm/context/address"
+        ],
+        "schema_create_template": "aep schema create --name \"<schema-name>\" --from-sample <data.json> --class-id https://ns.adobe.com/xdm/context/profile --use-ai"
+      },
+      "artifacts": [],
+      "confidence": 0.7,
+      "warnings": [],
+      "next_actions": [
+        "Review recommended identity namespace",
+        "Run aep schema create with suggested class_id"
+      ],
+      "metadata": {}
+    }
+  },
+  "confidence": 0.675,
+  "warnings": [
+    "Medium confidence (0.5-0.7): verify recommendations"
+  ],
+  "errors": [],
+  "artifacts": {},
+  "next_actions": [
+    "Use schema-mapping-agent to generate XDM mapping guidance",
+    "Review low-confidence fields before schema creation",
+    "Review recommended identity namespace",
+    "Run aep schema create with suggested class_id"
+  ],
+  "final_summary": "route=mixed, agents=data-analysis-agent,schema-mapping-agent, status=success, confidence=0.68"
+}

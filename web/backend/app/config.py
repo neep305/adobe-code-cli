@@ -36,20 +36,37 @@ class Settings(BaseSettings):
     
     # CORS
     cors_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:3001"],
-        description="Allowed CORS origins"
+        default=[
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ],
+        description="Allowed CORS origins",
+    )
+    
+    # Web Mode
+    web_mode: str = Field(
+        default="standalone",
+        description="Web server mode: standalone, docker, or dev"
     )
     
     # Database
     database_url: str = Field(
-        default="postgresql+asyncpg://aep_user:aep_password@localhost:5432/aep_web",
-        description="PostgreSQL database URL"
+        default="sqlite+aiosqlite:///.adobe/web/aep.db",
+        description="Database URL (SQLite for standalone, PostgreSQL for docker)"
     )
     
     # Redis
     redis_url: str = Field(
         default="redis://localhost:6379/0",
-        description="Redis URL for caching and task queue"
+        description="Redis URL for caching (only used in docker/dev mode)"
+    )
+    
+    # Cache
+    cache_backend: str = Field(
+        default="memory",
+        description="Cache backend: memory (standalone) or redis (docker/dev)"
     )
     
     # Adobe Experience Platform

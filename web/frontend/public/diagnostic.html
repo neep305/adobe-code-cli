@@ -230,11 +230,6 @@
                 return;
             }
             
-            if (password.length < 8) {
-                showResult(resultId, '❌ Password must be at least 8 characters', 'error');
-                return;
-            }
-            
             showResult(resultId, '⏳ Registering user...', 'info');
             
             try {
@@ -243,7 +238,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, password, name })
+                    body: JSON.stringify({ login_id: email, password, name })
                 });
                 
                 const data = await response.json();
