@@ -1,34 +1,38 @@
 """Pytest configuration and fixtures for backend tests."""
 
 import asyncio
+import os
 from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
-from app.db.database import Base, get_db
+from app.db.database import get_db
+from app.db.models import Base
 from app.main import app
 
-# Test database URL
-TEST_DATABASE_URL = "postgresql+asyncpg://aep_user:aep_password@localhost:5432/aep_web_test"
-
-# Create test engine
-test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    poolclass=NullPool,
-    echo=False,
+# Default: in-memory SQLite (shared pool so create_all and requests see the same DB).
+# Override with TEST_DATABASE_URL=postgresql+asyncpg://... when needed.
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "sqlite+aiosqlite:///:memory:",
 )
 
-# Create test session factory
-TestSessionLocal = sessionmaker(
-    test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+_test_engine_kwargs: dict = {"echo": False}
+if TEST_DATABASE_URL.startswith("sqlite"):
+    _test_engine_kwargs["connect_args"] = {"check_same_thread": False}
+    _test_engine_kwargs["poolclass"] = StaticPool
+else:
+    from sqlalchemy.pool import NullPool
+
+    _test_engine_kwargs["poolclass"] = NullPool
+
+test_engine = create_async_engine(TEST_DATABASE_URL, **_test_engine_kwargs)
+
+TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
 @pytest.fixture(scope="session")
@@ -41,30 +45,28 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Create a fresh database session for each test."""
-    # Create tables
+    """Create a fresh database schema for each test."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Create session
+
     async with TestSessionLocal() as session:
         yield session
-    
-    # Drop tables after test
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """Create a test client with overridden database dependency."""
-    
+    """HTTP client with database dependency overridden to the test session."""
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()

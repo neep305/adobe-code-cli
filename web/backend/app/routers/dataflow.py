@@ -35,16 +35,49 @@ async def get_aep_client(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> AEPClient:
-    """Get AEP client with user's credentials."""
+    """Get AEP client using user's saved credentials, falling back to environment variables."""
+    from base64 import b64decode
+
+    from sqlalchemy import select as sa_select
+
+    from app.db.models import AEPConfig as AEPConfigModel
+
+    # Try to load user's saved AEP config from DB first
+    result = await db.execute(
+        sa_select(AEPConfigModel).where(
+            AEPConfigModel.user_id == current_user.id,
+            AEPConfigModel.is_default == True,  # noqa: E712
+        )
+    )
+    db_config = result.scalar_one_or_none()
+
+    if db_config:
+        try:
+            client_secret = b64decode(db_config.encrypted_client_secret.encode()).decode()
+        except Exception:
+            client_secret = db_config.encrypted_client_secret
+
+        config = AEPConfig(
+            client_id=db_config.client_id,
+            client_secret=client_secret,
+            org_id=db_config.org_id,
+            technical_account_id=db_config.technical_account_id,
+            sandbox_name=db_config.sandbox_name,
+            tenant_id=db_config.tenant_id or "",
+        )
+        return AEPClient(config)
+
+    # Fallback to environment variables
     from app.config import get_settings
     settings = get_settings()
-    
+
     if not settings.aep_client_id or not settings.aep_client_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Adobe Experience Platform credentials not configured"
+            detail="Adobe Experience Platform credentials not configured. "
+                   "Save your AEP credentials via PUT /api/settings/aep",
         )
-    
+
     config = AEPConfig(
         client_id=settings.aep_client_id,
         client_secret=settings.aep_client_secret.get_secret_value() if settings.aep_client_secret else None,
@@ -53,14 +86,13 @@ async def get_aep_client(
         sandbox_name=settings.aep_sandbox_name,
         tenant_id=settings.aep_tenant_id or "",
     )
-    
     return AEPClient(config)
 
 
 @router.get("", response_model=DataflowListResponse)
 async def list_dataflows(
     limit: int = Query(default=50, ge=1, le=100),
-    state: Optional[str] = Query(default=None, regex="^(enabled|disabled)$"),
+    state: Optional[str] = Query(default=None, pattern="^(enabled|disabled)$"),
     current_user: User = Depends(get_current_user),
     aep_client: AEPClient = Depends(get_aep_client)
 ) -> DataflowListResponse:

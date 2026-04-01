@@ -53,7 +53,7 @@ def _load_records_from_file(file_content: bytes, filename: str) -> list:
 
 @router.post("/run", response_model=AnalyzeResponse)
 async def run_analysis(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     intent: str = Form(...),
     verbose: bool = Form(False),
     current_user: User = Depends(get_current_user),
@@ -62,7 +62,7 @@ async def run_analysis(
     """Run supervisor-based data analysis on uploaded file.
     
     Args:
-        file: JSON or CSV file containing sample records
+        files: JSON or CSV files containing sample records
         intent: Natural language description of analysis intent
         verbose: Show detailed agent execution trace
         current_user: Current authenticated user
@@ -71,27 +71,45 @@ async def run_analysis(
     Returns:
         Analysis results with paths to saved files
     """
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one file is required"
+        )
+
+    records: list = []
+    processed_filenames: List[str] = []
+
     # Validate file type
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must have a name"
-        )
+    for file in files:
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must have a name"
+            )
     
-    if not (file.filename.endswith(".json") or file.filename.endswith(".csv")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only JSON and CSV files are supported"
-        )
+        if not (file.filename.endswith(".json") or file.filename.endswith(".csv")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only JSON and CSV files are supported: {file.filename}"
+            )
     
-    # Read file content
-    try:
-        file_content = await file.read()
-        records = _load_records_from_file(file_content, file.filename)
-    except Exception as e:
+        # Read file content
+        try:
+            file_content = await file.read()
+            file_records = _load_records_from_file(file_content, file.filename)
+            records.extend(file_records)
+            processed_filenames.append(file.filename)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to parse file '{file.filename}': {str(e)}"
+            )
+
+    if not records:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse file: {str(e)}"
+            detail="No records found in uploaded files"
         )
     
     # Create output directory
@@ -107,7 +125,7 @@ async def run_analysis(
         "input_source": "file",
         "payload": {
             "records": records,
-            "filename": file.filename,
+            "filename": ", ".join(processed_filenames),
         },
     }
     
@@ -127,7 +145,7 @@ async def run_analysis(
     json_path.write_text(state.model_dump_json(indent=2), encoding="utf-8")
     
     # Generate Markdown report
-    md_content = _generate_markdown_report(state, file.filename)
+    md_content = _generate_markdown_report(state, ", ".join(processed_filenames))
     md_path.write_text(md_content, encoding="utf-8")
     
     # Build agent results

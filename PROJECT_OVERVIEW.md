@@ -1,25 +1,28 @@
-# Adobe Experience Platform CLI Agent
+# Adobe Experience Platform AI Agent (AEP Agent)
 
-**AI-Powered Automation for AEP Integration**
+**대화형 인터페이스를 통한 AEP 운영 자동화 에이전트**
 
-An internal tool that uses AI to streamline Adobe Experience Platform provisioning, reducing manual work by 80-85% through intelligent schema generation, data validation, and automated ingestion pipelines.
+기존의 복잡한 CLI 커맨드 입력 방식에서 벗어나, AI 에이전트와의 자연어 대화 및 가이드된 워크플로우를 통해 AEP 설정을 자동화합니다. 사용자가 커맨드를 외울 필요 없이, 에이전트가 단계를 리드하며 실행 결과를 보고합니다.
 
 ---
 
 ## 🎯 Project Overview
 
 ### What It Does
-Transforms complex AEP integration tasks into simple CLI commands powered by AI inference:
+사용자의 의도를 분석하여 복잡한 API 호출 체인을 에이전트가 대신 실행합니다.
 
 ```bash
-# Traditional: 2-4 hours of manual XDM schema design
-aep schema create --from-sample customer_data.csv --name "Customer Events"
+# 사용자는 단순히 에이전트를 실행하거나 특정 파일을 지정합니다.
+aep assistant --file sales.csv
 
-# Traditional: 4-8 hours of batch ingestion setup
-aep ingest csv --file data.csv --dataset customers --auto-validate
+# 에이전트가 메뉴를 제시합니다:
+# ? 어떤 작업을 진행할까요?
+# > [1] 데이터 분석 및 스키마 생성 플랜 수립
+#   [2] 기존 데이터셋에 업로드 (Batch Ingestion)
+#   [3] 데이터 품질 검사 및 리포트 생성
+#   [4] 기타 자유 질의 (Chat Mode)
 
-# Traditional: 3-5 hours of technical documentation
-aep analyze --dataset customers --generate-docs
+# 선택 후: 에이전트가 해당 '플랜'을 시각적으로 보여주고 승인을 요청합니다.
 ```
 
 **Core Value**: "Claude Code for Adobe Services" - AI makes decisions at every step, not just API calls.

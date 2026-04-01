@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,14 +12,21 @@ const navigation = [
   { name: "Dataflows", href: "/dataflows" },
   { name: "Datasets", href: "/datasets" },
   { name: "Schemas", href: "/schemas" },
+  { name: "Settings", href: "/settings" },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -46,8 +53,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">{user?.email}</span>
-              <Button variant="outline" size="sm" onClick={logout}>
+              <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
                 Sign out
               </Button>
             </div>

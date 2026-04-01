@@ -15,11 +15,14 @@ from adobe_experience.cli.command_metadata import (
     register_command_group_metadata,
 )
 
-ai_app = typer.Typer(help="AI provider configuration")
+ai_app = typer.Typer(
+    help="🤖 AI-powered features",
+    epilog="""\n\nAI Features:\n\n  chat              Interactive AI assistant\n  generate          Generate test data using AI\n  analyze           Supervisor-based data analysis\n\n  set-key           Configure AI provider API keys\n  list-keys         List configured providers\n  status            Show AI configuration\n"""
+)
 console = Console()
 
 # Register command group metadata
-register_command_group_metadata("ai", CommandCategory.ENHANCED, "AI provider key management")
+register_command_group_metadata("ai", CommandCategory.ENHANCED, "AI-powered features (chat, generate, analyze)")
 
 
 def get_credentials_file() -> Path:
@@ -944,3 +947,41 @@ def plan_workflow(
     except Exception as e:
         console.print(f"[red]Error: {str(e)}[/red]")
         raise typer.Exit(1)
+
+# ============================================================================
+# AI Subcommands: chat, generate, analyze
+# ============================================================================
+
+# Import chat function from llm module
+from adobe_experience.cli.llm import chat as llm_chat_func
+
+# Import generate and analyze apps
+from adobe_experience.cli.generate import generate_app
+from adobe_experience.cli.analyze import analyze_app
+
+
+@ai_app.command("chat")
+def chat(
+    query: Optional[str] = typer.Argument(None, help="One-shot query (omit for interactive mode)"),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="AI provider (openai or anthropic)"),
+    tools: Optional[str] = typer.Option(None, "--tools", help="Comma-separated tool categories"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show tool calls and execution details"),
+    max_turns: int = typer.Option(10, "--max-turns", help="Maximum conversation turns"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model to use"),
+) -> None:
+    """Interactive AI assistant for AEP operations.
+    
+    Talk to Claude or ChatGPT to query and analyze AEP resources using natural language.
+    Available tools include schema, dataset, and dataflow operations.
+    
+    Examples:
+        aep ai chat
+        aep ai chat "list my schemas"
+        aep ai chat --provider openai "analyze dataflows"
+    """
+    llm_chat_func(query, provider, tools, verbose, max_turns, model)
+
+
+# Add generate and analyze as subcommands
+ai_app.add_typer(generate_app, name="generate", help="Generate test data using AI")
+ai_app.add_typer(analyze_app, name="analyze", help="Supervisor-based data analysis")

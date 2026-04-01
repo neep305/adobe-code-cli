@@ -100,8 +100,6 @@ output/
 
 # Test-generated data / scenario files
 /customer_profile_schema.json
-/cli_list.md
-/cli_scenario.md
 
 # Adobe workspace temp directory
 .adobe-workspace/

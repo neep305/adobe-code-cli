@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import MarkdownViewer from "@/components/analyze/markdown-viewer";
+import { apiClient, ApiError } from "@/lib/api";
 
 interface AgentResult {
   agent: string;
@@ -32,7 +33,7 @@ interface AnalyzeResult {
 }
 
 export default function AnalyzePage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [intent, setIntent] = useState("");
   const [verbose, setVerbose] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,33 +56,52 @@ export default function AnalyzePage() {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(Array.from(e.dataTransfer.files));
     }
   };
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = (selectedFiles: File[]) => {
     const validExtensions = [".json", ".csv"];
-    const extension = selectedFile.name.substring(selectedFile.name.lastIndexOf("."));
-    
-    if (!validExtensions.includes(extension.toLowerCase())) {
+    const invalidFiles = selectedFiles.filter((selectedFile) => {
+      const extension = selectedFile.name.substring(selectedFile.name.lastIndexOf("."));
+      return !validExtensions.includes(extension.toLowerCase());
+    });
+
+    if (invalidFiles.length > 0) {
       setError("Invalid file type. Please upload JSON or CSV files.");
       return;
     }
 
-    setFile(selectedFile);
+    setFiles((previousFiles) => {
+      const merged = [...previousFiles, ...selectedFiles];
+      const uniqueByName = new Map<string, File>();
+      for (const file of merged) {
+        uniqueByName.set(file.name, file);
+      }
+      return Array.from(uniqueByName.values());
+    });
     setError(null);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileSelect(Array.from(e.target.files));
+      e.target.value = "";
     }
   };
 
+  const handleRemoveFile = (filename: string) => {
+    setFiles((previousFiles) => previousFiles.filter((file) => file.name !== filename));
+  };
+
+  const handleClearFiles = () => {
+    setFiles([]);
+  };
+
   const handleSubmit = async () => {
-    if (!file || !intent.trim()) {
-      setError("Please select a file and provide analysis intent.");
+    if (files.length === 0 || !intent.trim()) {
+      setError("Please select files and provide analysis intent.");
       return;
     }
 
@@ -91,24 +111,22 @@ export default function AnalyzePage() {
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
       formData.append("intent", intent);
       formData.append("verbose", verbose.toString());
 
-      const response = await fetch("/api/analyze/run", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Analysis failed");
-      }
-
-      const data = await response.json();
+      const data = await apiClient.uploadFormData<AnalyzeResult>("/api/analyze/run", formData);
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -139,7 +157,7 @@ export default function AnalyzePage() {
         <CardHeader>
           <CardTitle>Upload Data File</CardTitle>
           <CardDescription>
-            Support for JSON and CSV files. Maximum size: 50MB.
+            Upload one or more JSON and CSV files for a single merged analysis. Maximum size: 50MB per file.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -165,15 +183,38 @@ export default function AnalyzePage() {
                   id="file-upload"
                   type="file"
                   accept=".json,.csv"
+                  multiple
                   onChange={handleFileInput}
                   className="hidden"
                 />
               </label>
             </div>
-            {file && (
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-sm font-medium">{file.name}</span>
+            {files.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm font-medium">{files.length} file(s) selected</span>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {files.map((selectedFile) => (
+                    <Badge key={selectedFile.name} variant="secondary" className="gap-2 px-3 py-1">
+                      <span>{selectedFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(selectedFile.name)}
+                        className="text-xs font-semibold"
+                        aria-label={`Remove ${selectedFile.name}`}
+                      >
+                        x
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="text-center">
+                  <Button type="button" variant="ghost" size="sm" onClick={handleClearFiles}>
+                    Clear all files
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -211,7 +252,7 @@ export default function AnalyzePage() {
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={loading || !file || !intent.trim()}
+            disabled={loading || files.length === 0 || !intent.trim()}
             className="w-full"
           >
             {loading ? (
