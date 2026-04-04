@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Analyze", href: "/analyze" },
+  { name: "Schema Wizard", href: "/schema-wizard" },
   { name: "Batches", href: "/batches" },
   { name: "Dataflows", href: "/dataflows" },
   { name: "Datasets", href: "/datasets" },

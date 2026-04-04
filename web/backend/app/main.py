@@ -137,6 +137,10 @@ app.include_router(schema.router, prefix="/api/schemas", tags=["Schemas"])
 from app.routers import settings as settings_router
 app.include_router(settings_router.router, prefix="/api/settings", tags=["Settings"])
 
+# Include schema wizard router
+from app.routers import schema_wizard
+app.include_router(schema_wizard.router, prefix="/api/schema-wizard", tags=["Schema Wizard"])
+
 # Include WebSocket endpoints
 from app.websockets import batch_status
 app.add_api_websocket_route("/ws/batch/{batch_id}/status", batch_status.websocket_endpoint)
@@ -144,6 +148,10 @@ app.add_api_websocket_route("/ws/batch/{batch_id}/status", batch_status.websocke
 # Upload progress WebSocket endpoint
 from app.websockets import upload_progress
 app.add_api_websocket_route("/ws/upload/{upload_id}", upload_progress.websocket_endpoint)
+
+# Schema wizard WebSocket endpoint
+from app.websockets import schema_wizard_ws
+app.add_api_websocket_route("/ws/schema-wizard/{session_id}", schema_wizard_ws.websocket_endpoint)
 
 
 @app.exception_handler(Exception)
