@@ -186,13 +186,20 @@ def start_web(
         console.print("Backend server may already be running")
         raise typer.Exit(1)
     
+    frontend_index = _manager.web_dir / "frontend" / "out" / "index.html"
+    frontend_ready = frontend_index.is_file()
+
     console.print(Panel.fit(
         "[bold cyan]Starting Adobe AEP Web UI[/bold cyan]\n\n"
         "[OK] No Docker required\n"
-        "[OK] No Node.js required\n"
         "[OK] SQLite database (lightweight)\n"
         "[OK] Memory cache\n"
-        "[OK] Static frontend (pre-built)",
+        + (
+            "[OK] Static frontend found (web/frontend/out)\n"
+            if frontend_ready
+            else "[yellow]![/yellow] Frontend build missing — run: [bold]cd web/frontend && npm run build[/bold]\n"
+        )
+        + "[dim](Node.js only needed once to build the UI)[/dim]",
         title="Adobe AEP Web UI",
         border_style="cyan"
     ))

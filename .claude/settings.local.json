@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(adobe-aep schema create:*)"
+      "Bash(adobe-aep schema create:*)",
+      "Bash(python eval-viewer/generate_review.py \"C:/Users/jasonnam/.claude/skills/aep-automation-workspace/iteration-1\" --skill-name \"aep-automation\" --benchmark \"C:/Users/jasonnam/.claude/skills/aep-automation-workspace/iteration-1/benchmark.json\" --static \"C:/Users/jasonnam/.claude/skills/aep-automation-workspace/iteration-1/review.html\")",
+      "Bash(python -m pytest tests/test_schema.py -v)",
+      "Bash(xargs ls:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

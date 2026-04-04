@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
+  { name: "Onboarding", href: "/onboarding" },
   { name: "Analyze", href: "/analyze" },
   { name: "Batches", href: "/batches" },
   { name: "Dataflows", href: "/dataflows" },
@@ -33,7 +34,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <span className="text-xl font-bold text-primary">Adobe AEP</span>
+                <span className="text-xl font-bold text-primary">AEP CLI Agent</span>
               </div>
               <div className="ml-6 flex space-x-8">
                 {navigation.map((item) => (

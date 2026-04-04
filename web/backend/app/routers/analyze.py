@@ -1,6 +1,5 @@
 """Data analysis API router."""
 
-import io
 import json
 import sys
 from datetime import datetime
@@ -25,30 +24,9 @@ from app.schemas.analyze import (
     AnalyzeResponse,
     MarkdownContent,
 )
+from app.utils.sample_records import load_records_from_bytes
 
 router = APIRouter()
-
-
-def _load_records_from_file(file_content: bytes, filename: str) -> list:
-    """Load records from uploaded file (JSON or CSV)."""
-    content_str = file_content.decode("utf-8")
-    
-    if filename.endswith(".json"):
-        data = json.loads(content_str)
-        if isinstance(data, list):
-            return data
-        elif isinstance(data, dict):
-            return [data]
-        else:
-            raise ValueError("JSON must be array of objects or single object")
-    
-    elif filename.endswith(".csv"):
-        import csv
-        reader = csv.DictReader(io.StringIO(content_str))
-        return list(reader)
-    
-    else:
-        raise ValueError("Unsupported file format. Use .json or .csv")
 
 
 @router.post("/run", response_model=AnalyzeResponse)
@@ -97,7 +75,7 @@ async def run_analysis(
         # Read file content
         try:
             file_content = await file.read()
-            file_records = _load_records_from_file(file_content, file.filename)
+            file_records = load_records_from_bytes(file_content, file.filename)
             records.extend(file_records)
             processed_filenames.append(file.filename)
         except Exception as e:

@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: 'export',  // Static export for standalone mode
+  trailingSlash: true,  // Outputs analyze/index.html instead of analyze.html for static server compatibility
   distDir: 'out',
   images: {
     unoptimized: true,  // Required for static export

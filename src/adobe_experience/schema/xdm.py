@@ -591,22 +591,7 @@ class XDMSchemaRegistry:
             Created field group response.
         """
         path = f"{self.SCHEMA_REGISTRY_PATH}/tenant/fieldgroups"
-        
-        try:
-            field_group_data = field_group.model_dump(by_alias=True, exclude_none=True)
-            # Debug: Save to file and check serialization
-            import json
-            from pathlib import Path
-            debug_file = Path("debug_fieldgroup.json")
-            debug_file.write_text(json.dumps(field_group_data, indent=2), encoding="utf-8")
-            print(f"DEBUG: Field group data saved to {debug_file}")
-            print(f"DEBUG: Field group data type: {type(field_group_data)}")
-            print(f"DEBUG: allOf type: {type(field_group_data.get('allOf'))}")
-        except Exception as e:
-            print(f"DEBUG: Serialization failed: {e}")
-            import traceback
-            traceback.print_exc()
-            raise ValueError(f"Failed to serialize field group: {e}") from e
+        field_group_data = field_group.model_dump(by_alias=True, exclude_none=True)
 
         return await self.client.post(
             path,

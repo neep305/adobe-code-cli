@@ -124,6 +124,17 @@ def create_schema(
         "--upload",
         help="Upload schema to AEP after generation",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip upload confirmation prompt (for CI/automation)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show upload preview without making API calls",
+    ),
     class_id: Optional[str] = typer.Option(
         None,
         "--class-id",
@@ -353,39 +364,55 @@ def create_schema(
             except Exception:
                 pass
 
-        # Upload to AEP
-        if upload:
-            # Check if in dry-run mode
+        # Upload to AEP (or dry-run preview)
+        if upload or dry_run:
+            # Build upload preview
+            xdm_class_val = schema_json.get('meta:class', '')
+            if not xdm_class_val:
+                all_of_refs = schema_json.get('allOf', [])
+                if all_of_refs:
+                    xdm_class_val = all_of_refs[0].get('$ref', 'N/A')
+            if 'experienceevent' in xdm_class_val.lower():
+                class_display = 'ExperienceEvent'
+            elif 'profile' in xdm_class_val.lower():
+                class_display = 'Profile'
+            else:
+                class_display = xdm_class_val or 'N/A'
+
+            custom_field_count = len(
+                schema_json.get('properties', {})
+                .get(f'_{config.aep_tenant_id}', {})
+                .get('properties', {})
+            )
+            fg_line = f"\n  Field Group : {field_group.title}" if field_group else ""
+            sandbox_name = getattr(config, 'aep_sandbox_name', 'prod') or 'prod'
+
+            console.print(Panel(
+                f"  Schema Name : {name}\n"
+                f"  XDM Class   : {class_display}\n"
+                f"  Fields      : {custom_field_count} custom fields"
+                f"{fg_line}\n"
+                f"  Target      : sandbox '{sandbox_name}'",
+                title="Upload Preview",
+                border_style="cyan",
+            ))
+
+            # Check for dry-run (explicit flag or tutorial mode)
             from adobe_experience.core.config import load_onboarding_state, TutorialMode
             state = load_onboarding_state()
-            
-            if state and state.mode == TutorialMode.DRY_RUN:
-                console.print("\n[bold yellow]🎓 Dry-Run Mode: Simulating schema upload[/bold yellow]")
-                
-                # Get XDM class safely
-                xdm_class = schema_json.get('meta:class', 'N/A')
-                if not xdm_class or xdm_class == 'N/A':
-                    all_of = schema_json.get('allOf', [])
-                    if all_of and len(all_of) > 0:
-                        xdm_class = all_of[0].get('$ref', 'N/A')
-                
-                # Field group info if available
-                fg_info = ""
-                if field_group:
-                    fg_info = f"\n  • Field Group: {field_group.title}"
-                
-                console.print(Panel(
-                    f"[bold]Simulated Upload[/bold]\n\n"
-                    f"Would upload to AEP:{fg_info}\n"
-                    f"  • Schema Name: {name}\n"
-                    f"  • Fields: {len(schema_json.get('properties', {}).get(f'_{config.aep_tenant_id}', {}).get('properties', {}))} custom fields\n"
-                    f"  • Class: {xdm_class}\n\n"
-                    f"[dim]In online mode, this would create real resources in your AEP environment.[/dim]",
-                    border_style="yellow",
-                ))
-                console.print(f"[green]✓[/green] Dry-run completed successfully!")
+            is_dry_run = dry_run or (state and state.mode == TutorialMode.DRY_RUN)
+
+            if is_dry_run:
+                console.print("[green]✓[/green] Dry-run completed. No changes were made to AEP.")
                 return
-            
+
+            # Confirm upload (skip with --yes)
+            if not yes:
+                confirmed = Confirm.ask("\nProceed with upload?", default=True)
+                if not confirmed:
+                    console.print("[yellow]Upload cancelled.[/yellow]")
+                    return
+
             config = get_config()
 
             console.print("\n[bold cyan]Uploading schema to AEP...[/bold cyan]")
@@ -393,16 +420,13 @@ def create_schema(
             try:
                 # If from ERD, upload field group first
                 if from_erd:
-                    # Convert field group to dict
-                    field_group_dict = field_group.model_dump(by_alias=True, exclude_none=True)
-                    
-                    async def upload_field_group(fg_dict, cfg):
+                    async def upload_field_group(fg, cfg):
                         async with AEPClient(cfg) as client:
                             registry = XDMSchemaRegistry(client)
-                            return await registry.create_field_group(fg_dict)
-                    
+                            return await registry.create_field_group(fg)
+
                     console.print("[bold cyan]→ Step 1/2: Creating field group...[/bold cyan]")
-                    uploaded_field_group = asyncio.run(upload_field_group(field_group_dict, config))
+                    uploaded_field_group = asyncio.run(upload_field_group(field_group, config))
                     console.print(f"[green]✓[/green] Field group created successfully!")
                     console.print(f"  Field Group ID: [cyan]{uploaded_field_group.get('$id', 'N/A')}[/cyan]")
                     
@@ -553,6 +577,88 @@ def get_schema(
             output.write_text(json.dumps(schema, indent=2), encoding="utf-8")
             console.print(f"\n[green]✓[/green] Schema saved to {output}")
 
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@command_metadata(CommandCategory.ENHANCED, "Validate sample data against a local schema file")
+@schema_app.command("validate")
+def validate_schema(
+    schema_file: Path = typer.Option(
+        ...,
+        "--schema",
+        "-s",
+        help="Path to local schema JSON file",
+    ),
+    data_file: Path = typer.Option(
+        ...,
+        "--data",
+        "-d",
+        help="Path to sample data JSON file",
+    ),
+) -> None:
+    """Validate sample data against a local schema before uploading to AEP.
+
+    Examples:
+        aep schema validate --schema customer_schema.json --data customers.json
+    """
+    if not schema_file.exists():
+        console.print(f"[red]Error: Schema file not found: {schema_file}[/red]")
+        raise typer.Exit(1)
+
+    if not data_file.exists():
+        console.print(f"[red]Error: Data file not found: {data_file}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        from adobe_experience.agent.inference import AIInferenceEngine
+
+        with console.status("[bold blue]Loading files..."):
+            schema_json = json.loads(schema_file.read_text(encoding="utf-8"))
+            raw_data = json.loads(data_file.read_text(encoding="utf-8"))
+            if not isinstance(raw_data, list):
+                raw_data = [raw_data]
+
+        console.print(f"[green]✓[/green] Schema: {schema_json.get('title', schema_file.name)}")
+        console.print(f"[green]✓[/green] Data: {len(raw_data)} records")
+
+        with console.status("[bold blue]Validating data against schema..."):
+            engine = AIInferenceEngine()
+            report = asyncio.run(engine.validate_schema_against_data(schema_json, raw_data))
+
+        # Summary table
+        status_color = "green" if report.overall_status == "passed" else "red"
+        console.print(f"\n[bold]Validation Result: [{status_color}]{report.overall_status.upper()}[/{status_color}][/bold]")
+
+        summary = Table(show_header=False, box=None, padding=(0, 2))
+        summary.add_row("Records validated", str(report.total_records_validated))
+        summary.add_row("[red]Critical[/red]", str(report.critical_issues))
+        summary.add_row("[yellow]Warning[/yellow]", str(report.warning_issues))
+        summary.add_row("[dim]Info[/dim]", str(report.info_issues))
+        console.print(summary)
+
+        if report.ai_summary:
+            console.print(Panel(report.ai_summary, title="AI Summary", border_style="cyan"))
+
+        if report.issues:
+            console.print("\n[bold]Issues:[/bold]")
+            for issue in report.issues:
+                if issue.severity.value == "critical":
+                    color = "red"
+                elif issue.severity.value == "warning":
+                    color = "yellow"
+                else:
+                    color = "dim"
+                console.print(f"  [{color}][{issue.severity.value.upper()}][/{color}] {issue.field_path}: {issue.message}")
+                if issue.suggestion:
+                    console.print(f"    [dim]→ {issue.suggestion}[/dim]")
+
+        if report.overall_status == "failed":
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)

@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.config import get_settings
 
@@ -137,6 +137,10 @@ app.include_router(schema.router, prefix="/api/schemas", tags=["Schemas"])
 from app.routers import settings as settings_router
 app.include_router(settings_router.router, prefix="/api/settings", tags=["Settings"])
 
+# Include onboarding router
+from app.routers import onboarding
+app.include_router(onboarding.router, prefix="/api/onboarding", tags=["Onboarding"])
+
 # Include WebSocket endpoints
 from app.websockets import batch_status
 app.add_api_websocket_route("/ws/batch/{batch_id}/status", batch_status.websocket_endpoint)
@@ -161,27 +165,48 @@ async def global_exception_handler(request, exc):
 # Serve static frontend files in standalone mode
 if settings.web_mode == "standalone":
     from pathlib import Path
+
     from fastapi.staticfiles import StaticFiles
-    
-    # Try multiple possible frontend build locations
+
+    # Try multiple possible frontend build locations (repo: web/frontend/out after `npm run build`)
     possible_paths = [
-        Path(__file__).parent.parent.parent / "frontend" / "out",  # Development
-        Path(__file__).parent / "frontend" / "out",  # Packaged in backend
-        Path(__file__).parent.parent / "frontend" / "out",  # Alternative structure
+        Path(__file__).resolve().parent.parent.parent / "frontend" / "out",
+        Path(__file__).resolve().parent / "frontend" / "out",
+        Path(__file__).resolve().parent.parent / "frontend" / "out",
     ]
-    
+
     frontend_dist = None
     for path in possible_paths:
-        if path.exists() and path.is_dir():
+        if path.is_dir() and (path / "index.html").is_file():
             frontend_dist = path
             break
-    
+
     if frontend_dist:
         print(f"   [OK] Serving static frontend from: {frontend_dist}")
         app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
     else:
-        print(f"   [WARNING] Frontend build not found. Run 'cd web/frontend && npm run export'")
-        print(f"     Searched paths: {[str(p) for p in possible_paths]}")
+        print("   [WARNING] Frontend static export not found (expected index.html under web/frontend/out).")
+        print("     Build once:  cd web/frontend && npm install && npm run build")
+        print(f"     Searched: {[str(p) for p in possible_paths]}")
+
+        @app.get("/", include_in_schema=False)
+        async def standalone_root_help() -> HTMLResponse:
+            """Avoid bare FastAPI 404 JSON when users open the server root without a frontend build."""
+            paths_html = "<br/>".join(f"<code>{p}</code>" for p in possible_paths)
+            body = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><title>AEP Web UI — build required</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;line-height:1.5">
+<h1>Adobe AEP Web UI (standalone)</h1>
+<p>The API is running, but <strong>static frontend files</strong> are missing. Run the following once, then restart the server.</p>
+<pre style="background:#f4f4f5;padding:1rem;border-radius:8px;overflow:auto">cd web/frontend
+npm install
+npm run build</pre>
+<p>Then start again with <code>aep web start</code>; the UI will be served at this URL.</p>
+<p><a href="/api/health">GET /api/health</a> · <a href="/api/version">GET /api/version</a></p>
+<details><summary>Paths searched</summary>{paths_html}</details>
+</body></html>"""
+            return HTMLResponse(content=body)
 
 
 if __name__ == "__main__":

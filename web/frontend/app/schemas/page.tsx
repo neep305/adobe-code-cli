@@ -7,12 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { FileJson, ChevronDown, ChevronRight, Layers } from "lucide-react";
+import { SchemaCreateWizard } from "@/components/schemas/schema-create-wizard";
+import { Button } from "@/components/ui/button";
+import { FileJson, ChevronDown, ChevronRight, Layers, Copy, Check } from "lucide-react";
 
 function ClassBadge({ classId }: { classId: string }) {
-  const label = classId.includes("ExperienceEvent")
+  const label = classId.includes("ExperienceEvent") || classId.includes("experienceevent")
     ? "Experience Event"
-    : classId.includes("IndividualProfile")
+    : classId.includes("IndividualProfile") ||
+        classId.includes("/xdm/context/profile")
     ? "Individual Profile"
     : classId.includes("Record")
     ? "Record"
@@ -34,38 +37,38 @@ function ClassBadge({ classId }: { classId: string }) {
 
 function SchemaDetailPanel({ schemaId }: { schemaId: number }) {
   const { data, isLoading } = useSchema(schemaId);
+  const [copied, setCopied] = useState(false);
 
   if (isLoading) return <p className="text-sm text-gray-500 py-2">Loading definition...</p>;
   if (!data) return null;
 
-  const fields = data.definition?.properties
-    ? Object.entries(data.definition.properties as Record<string, unknown>)
-    : [];
+  const jsonStr = JSON.stringify(data.definition, null, 2);
+
+  const copyJson = () => {
+    navigator.clipboard.writeText(jsonStr).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="mt-4 border-t pt-4 space-y-2">
-      <p className="text-sm font-medium text-gray-700">
-        Fields ({fields.length})
-      </p>
-      {fields.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {fields.slice(0, 12).map(([key]) => (
-            <span
-              key={key}
-              className="text-xs font-mono bg-gray-50 border rounded px-2 py-1 text-gray-600"
-            >
-              {key}
-            </span>
-          ))}
-          {fields.length > 12 && (
-            <span className="text-xs text-gray-400 px-2 py-1">
-              +{fields.length - 12} more
-            </span>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-700">XDM JSON Structure</p>
+        <button
+          onClick={copyJson}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-emerald-500" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
           )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400">No field definitions available</p>
-      )}
+          {copied ? "Copied!" : "Copy JSON"}
+        </button>
+      </div>
+      <pre className="text-xs font-mono bg-gray-50 border rounded-md p-3 overflow-x-auto max-h-96 overflow-y-auto text-gray-700 leading-relaxed whitespace-pre">
+        {jsonStr}
+      </pre>
     </div>
   );
 }
@@ -135,9 +138,11 @@ export default function SchemasPage() {
         <div>
           <h1 className="text-3xl font-bold">Schemas</h1>
           <p className="text-gray-500 mt-2">
-            Browse and manage XDM schemas with AI-powered generation
+            Build XDM drafts from sample data and manage them in the list. Review before registering in AEP.
           </p>
         </div>
+
+        <SchemaCreateWizard />
 
         {error && (
           <Alert variant="destructive">
@@ -156,7 +161,7 @@ export default function SchemasPage() {
           </Card>
         ) : data && data.schemas.length > 0 ? (
           <>
-            <p className="text-sm text-gray-500">{data.total} schema(s) found</p>
+            <p className="text-sm text-gray-500">{data.total} schema(s)</p>
             <div className="grid gap-4">
               {data.schemas.map((schema) => (
                 <SchemaCard key={schema.id} schema={schema} />
@@ -166,13 +171,21 @@ export default function SchemasPage() {
         ) : (
           <Card>
             <CardContent className="py-12">
-              <div className="flex flex-col items-center gap-2 text-gray-500">
+              <div className="flex flex-col items-center gap-4 text-gray-500">
                 <Layers className="h-8 w-8" />
-                <p>No schemas found</p>
-                <p className="text-sm">
-                  Use <code className="bg-gray-100 px-1 rounded">aep schema create</code> to
-                  generate XDM schemas and they will appear here.
+                <p>No schemas yet</p>
+                <p className="text-sm text-center max-w-md">
+                  Upload CSV/JSON in <strong>Schema draft</strong> below, or use the CLI{" "}
+                  <code className="bg-gray-100 px-1 rounded">aep schema create</code>.
                 </p>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    document.getElementById("schema-wizard")?.scrollIntoView({ behavior: "smooth" })
+                  }
+                >
+                  Create a schema
+                </Button>
               </div>
             </CardContent>
           </Card>

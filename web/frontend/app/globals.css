@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import "@xyflow/react/dist/style.css";
 
 /* Adobe brand red ~#E1251B → hsl(4, 79%, 49%) */
 @layer base {
